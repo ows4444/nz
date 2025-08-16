@@ -1,0 +1,63 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug @apps/plugin-host",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["nx", "serve", "@apps/plugin-host", "--configuration=debug"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "smartStep": true,
+      "outFiles": [
+        "${workspaceFolder}/apps/plugin-host/dist/**/*.js",
+        "!**/node_modules/**"
+      ],
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${workspaceFolder}/apps/plugin-host/src/*",
+        "webpack:///./*": "${workspaceFolder}/apps/plugin-host/*",
+        "${workspaceFolder}/apps/plugin-host/*": "${workspaceFolder}/apps/plugin-host/*"
+      },
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/apps/plugin-host/**",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "name": "Attach to plugin-host",
+      "port": 9229,
+      "request": "attach",
+      "skipFiles": ["<node_internals>/**"],
+      "type": "node",
+      "sourceMaps": true,
+      "smartStep": true,
+      "outFiles": [
+        "${workspaceFolder}/apps/plugin-host/dist/**/*.js",
+        "!**/node_modules/**"
+      ],
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${workspaceFolder}/apps/plugin-host/src/*",
+        "webpack:///./*": "${workspaceFolder}/apps/plugin-host/*",
+        "${workspaceFolder}/apps/plugin-host/*": "${workspaceFolder}/apps/plugin-host/*"
+      },
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/apps/plugin-host/**",
+        "!**/node_modules/**"
+      ]
+    },
+    {
+      "name": "Launch plugin-host (Production)",
+      "request": "launch",
+      "type": "node",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["nx", "serve", "@apps/plugin-host:development"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true
+    }
+  ]
+}
