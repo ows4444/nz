@@ -1,0 +1,57 @@
+{
+  "name": "@plugin/<%= name %>",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "plugins/<%= name %>/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@tools/plugin:build",
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "options": {
+        "outputPath": "plugins/<%= name %>/dist",
+        "tsConfig": "plugins/<%= name %>/tsconfig.lib.json"
+      }
+    },
+    "lint": {
+      "executor": "@tools/plugin:lint",
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "options": {
+        "lintFilePatterns": [
+          "plugins/<%= name %>/**/*.ts"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": [
+        "{workspaceRoot}/coverage/{projectRoot}"
+      ],
+      "options": {
+        "jestConfig": "plugins/<%= name %>/jest.config.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit --project plugins/<%= name %>/tsconfig.lib.json"
+      }
+    },
+    "zip": {
+      "executor": "@tools/plugin:zip",
+      "dependsOn": ["build"],
+      "outputs": [
+        "{projectRoot}/dist/<%= name %>.zip"
+      ],
+      "options": {
+        "outputPath": "plugins/<%= name %>/dist"
+      }
+    }
+  },
+  "tags": [
+    "type:plugin"
+  ]
+}

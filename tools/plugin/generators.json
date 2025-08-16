@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "with-manifest-only": {
+      "factory": "./dist/generators/with-manifest-only",
+      "schema": "./dist/generators/schema.json",
+      "description": "with-manifest-only generator"
+    }
+  }
+}

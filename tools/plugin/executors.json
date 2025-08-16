@@ -1,0 +1,19 @@
+{
+  "executors": {
+    "lint": {
+      "implementation": "./dist/executors/lint",
+      "schema": "./dist/executors/lint.schema.json",
+      "description": "Lint a plugin project using ESLint"
+    },
+    "build": {
+      "implementation": "./dist/executors/build",
+      "schema": "./dist/executors/build.schema.json",
+      "description": "Build a plugin project with TypeScript compilation"
+    },
+    "zip": {
+      "implementation": "./dist/executors/zip",
+      "schema": "./dist/executors/zip.schema.json",
+      "description": "Create a zip package of a built plugin project"
+    }
+  }
+}

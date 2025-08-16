@@ -1,9 +1,13 @@
 {
   "compilerOptions": {
     "composite": true,
+    "customConditions": ["development"],
     "declarationMap": true,
     "emitDeclarationOnly": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "importHelpers": true,
+    "inlineSources": true,
     "isolatedModules": true,
     "lib": ["es2022"],
     "module": "nodenext",
@@ -14,8 +18,8 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "skipLibCheck": true,
+    "sourceMap": true,
     "strict": true,
-    "target": "es2022",
-    "customConditions": ["development"]
+    "target": "es2022"
   }
 }
