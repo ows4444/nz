@@ -1,0 +1,45 @@
+{
+  "name": "@plugin/auth",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "plugins/auth/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@tools/plugin:build",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "outputPath": "plugins/auth/dist",
+        "tsConfig": "plugins/auth/tsconfig.lib.json"
+      }
+    },
+    "lint": {
+      "executor": "@tools/plugin:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["plugins/auth/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "plugins/auth/jest.config.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit --project plugins/auth/tsconfig.lib.json"
+      }
+    },
+    "zip": {
+      "executor": "@tools/plugin:zip",
+      "dependsOn": ["build"],
+      "outputs": ["{projectRoot}/dist/auth.zip"],
+      "options": {
+        "outputPath": "plugins/auth/dist"
+      }
+    }
+  },
+  "tags": ["type:plugin"]
+}

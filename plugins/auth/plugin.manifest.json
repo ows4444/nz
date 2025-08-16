@@ -1,0 +1,25 @@
+{
+  "name": "@plugins/auth",
+  "version": "0.1.0",
+  "description": "Auth plugin for Nizaami platform",
+  "author": "Plugin Developer",
+  "license": "MIT",
+  "keywords": ["nizaami", "plugin", "auth"],
+  "dependencies": [],
+  "loadOrder": 100,
+  "critical": false,
+  "security": {
+    "trustLevel": "unverified"
+  },
+  "permissions": {
+    "services": [],
+    "modules": []
+  },
+  "module": {
+    "controllers": ["AuthController"],
+    "providers": ["AuthService"],
+    "exports": ["AuthService"],
+    "crossPluginServices": [],
+    "guards": []
+  }
+}
