@@ -1,0 +1,9 @@
+{
+  "name": "@libs/plugin-core",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/plugin-core/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project @libs/plugin-core --web",
+  "targets": {}
+}

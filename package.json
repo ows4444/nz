@@ -42,7 +42,8 @@
   "workspaces": [
     "apps/*",
     "plugins/*",
-    "tools/*"
+    "tools/*",
+    "libs/*"
   ],
   "dependencies": {
     "@nestjs/common": "^11.0.0",

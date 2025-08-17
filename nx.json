@@ -27,7 +27,8 @@
           "buildDepsName": "build-deps",
           "watchDepsName": "watch-deps"
         }
-      }
+      },
+      "exclude": ["libs/plugin-core/*"]
     },
     {
       "plugin": "@nx/webpack/plugin",
@@ -52,6 +53,15 @@
         "targetName": "test"
       },
       "exclude": ["apps/plugin-host-e2e/**/*"]
+    },
+    {
+      "plugin": "@nx/js/typescript",
+      "include": ["libs/plugin-core/*"],
+      "options": {
+        "typecheck": {
+          "targetName": "typecheck"
+        }
+      }
     }
   ],
   "tui": {
