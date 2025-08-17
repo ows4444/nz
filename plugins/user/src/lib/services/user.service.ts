@@ -1,0 +1,10 @@
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class UserService {
+  getHello(): string {
+    return 'Hello from User plugin!';
+  }
+
+  // Add your plugin service methods here
+}

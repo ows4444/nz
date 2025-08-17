@@ -39,15 +39,13 @@ export class PluginCore implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`Plugin ${pluginId} state changed: ${oldState} -> ${newState}`);
     });
 
-    // Auto-discover and load plugins if configured
-    if (this.config.searchPaths && this.config.searchPaths.length > 0) {
-      this.logger.log(`Auto-discovering plugins in configured paths: ${this.config.searchPaths.join(', ')}`);
-      try {
-        const results = await this.discoverAndLoadPlugins(this.config.searchPaths);
-        this.logger.log(`Auto-loaded ${results.filter(r => r.success).length} plugins`);
-      } catch (error) {
-        this.logger.error('Failed to auto-load plugins during initialization', error);
-      }
+    // Auto-discover and load plugins if searchPaths are configured
+    // Note: If plugins are pre-loaded in PluginCoreModule, this will be skipped
+    if (this.config.searchPaths && this.config.searchPaths.length > 0 && !this.config.skipRuntimeLoading) {
+      this.logger.log(`Starting plugin discovery and loading from paths: ${this.config.searchPaths.join(', ')}`);
+      await this.discoverAndLoadPlugins(this.config.searchPaths);
+    } else if (this.config.skipRuntimeLoading) {
+      this.logger.log('Runtime plugin loading skipped - plugins should be pre-loaded in module imports');
     }
   }
 

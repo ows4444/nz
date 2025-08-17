@@ -1,0 +1,45 @@
+{
+  "name": "@plugin/product",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "plugins/product/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@tools/plugin:build",
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "outputPath": "plugins/product/dist",
+        "tsConfig": "plugins/product/tsconfig.lib.json"
+      }
+    },
+    "lint": {
+      "executor": "@tools/plugin:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["plugins/product/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "plugins/product/jest.config.ts"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit --project plugins/product/tsconfig.lib.json"
+      }
+    },
+    "zip": {
+      "executor": "@tools/plugin:zip",
+      "dependsOn": ["build"],
+      "outputs": ["{projectRoot}/dist/product.zip"],
+      "options": {
+        "outputPath": "plugins/product/dist"
+      }
+    }
+  },
+  "tags": ["type:plugin"]
+}

@@ -1,72 +1,39 @@
 import { DynamicModule, Module, Provider, Type } from '@nestjs/common';
 import { PluginCore } from './plugin-core.service';
-
-// Discovery & Loading
+import * as fs from 'fs';
+import * as path from 'path';
+import { createRequire } from 'module';
 import { PluginDiscoveryService } from '../discovery/plugin-discovery.service';
+import { DynamicPluginModuleGeneratorService } from '../loading/dynamic-plugin-module-generator.service';
 import { PluginLoaderService } from '../loading/plugin-loader.service';
 import { PluginLoaderFactory } from '../loading/plugin-loader-factory';
 import { PluginLoaderStrategyFactory } from '../loading/plugin-loader-strategy-factory';
 import { PluginLoadingStrategyFactory } from '../loading/plugin-loading-strategy-factory';
 import { ParallelLoadingStrategyService } from '../loading/parallel-loading-strategy.service';
 import { DefaultPluginLoaderStrategy } from '../loading/default-plugin-loader-strategy.service';
-import { DynamicPluginModuleGeneratorService } from '../loading/dynamic-plugin-module-generator.service';
-
-// Registry & Coordination
 import { PluginLoaderCoordinatorService } from '../registry/plugin-loader-coordinator.service';
 import { PluginLoaderCoordinatorFactory } from '../registry/plugin-loader-coordinator-factory';
 import { PluginOrchestratorService } from '../registry/plugin-orchestrator.service';
-
-// Lifecycle & State
 import { PluginStateManagerService } from '../lifecycle/plugin-state-manager.service';
 import { PluginInstantiationService } from '../lifecycle/plugin-instantiation.service';
 import { PluginPostLoadVerificationService } from '../lifecycle/plugin-post-load-verification.service';
-
-// Security & Resources
 import { PluginSecurityManagerService } from '../security/plugin-security-manager.service';
 import { PluginMemoryManagerService } from '../security/plugin-memory-manager.service';
 import { PluginDependencyResolverService } from '../security/plugin-dependency-resolver.service';
-
-// Configuration
 import {
-  PluginCoreConfig,
   PluginCoreAsyncConfig,
   PluginCoreOptionsFactory,
-  PluginFeatureConfig,
-  PluginFeatureAsyncConfig,
-  PluginFeatureOptionsFactory,
   PLUGIN_CORE_CONFIG,
-  PLUGIN_FEATURE_CONFIG,
 } from '../types/plugin-core-config.interface';
 
 @Module({})
 export class PluginCoreModule {
-  static forRoot(config?: PluginCoreConfig): DynamicModule {
-    return {
-      module: PluginCoreModule,
-      global: true,
-      providers: [
-        {
-          provide: PLUGIN_CORE_CONFIG,
-          useValue: config || {},
-        },
-        ...this.createCoreProviders(),
-        {
-          provide: 'PLUGIN_MODULE_REGISTRY',
-          useFactory: () => new Map(),
-        },
-      ],
-      exports: [
-        PLUGIN_CORE_CONFIG,
-        ...this.createCoreExports(),
-        'PLUGIN_MODULE_REGISTRY',
-      ],
-    };
-  }
-
   static forRootAsync(options: PluginCoreAsyncConfig): DynamicModule {
+    // const discoveredPluginModules =  this.preDiscoverPluginModules(options);
     return {
       module: PluginCoreModule,
       global: true,
+      //imports: [...(options.imports || []), ...discoveredPluginModules],
       imports: options.imports || [],
       providers: [
         ...this.createAsyncProviders(options),
@@ -75,61 +42,126 @@ export class PluginCoreModule {
       exports: [PLUGIN_CORE_CONFIG, ...this.createCoreExports()],
     };
   }
-
-  static register(config?: PluginCoreConfig): DynamicModule {
-    return {
-      module: PluginCoreModule,
-      providers: [
-        {
-          provide: PLUGIN_CORE_CONFIG,
-          useValue: config || {},
-        },
-        ...this.createCoreProviders(),
-      ],
-      exports: [PLUGIN_CORE_CONFIG, ...this.createCoreExports()],
-    };
+  private static preDiscoverPluginModules(
+    options: PluginCoreAsyncConfig
+  ): any[] {
+    try {
+      if (options.useFactory) {
+        const pluginModules: any[] = [];
+        const defaultSearchPaths = ['./plugins'];
+        for (const searchPath of defaultSearchPaths) {
+          const resolvedPath = path.resolve(searchPath);
+          if (fs.existsSync(resolvedPath)) {
+            const pluginDirs = fs
+              .readdirSync(resolvedPath, { withFileTypes: true })
+              .filter((dirent) => dirent.isDirectory())
+              .map((dirent) => dirent.name);
+            for (const pluginDir of pluginDirs) {
+              try {
+                const manifestPath = path.join(
+                  resolvedPath,
+                  pluginDir,
+                  'plugin.manifest.json'
+                );
+                if (fs.existsSync(manifestPath)) {
+                  const manifestContent = fs.readFileSync(
+                    manifestPath,
+                    'utf-8'
+                  );
+                  const manifest = JSON.parse(manifestContent);
+                  const pluginModule = this.createPluginModule(
+                    manifest,
+                    resolvedPath,
+                    pluginDir
+                  );
+                  if (pluginModule) {
+                    pluginModules.push(pluginModule);
+                  }
+                }
+              } catch (error) {
+                console.warn(`Failed to process plugin ${pluginDir}:`, error);
+              }
+            }
+          }
+        }
+        return pluginModules;
+      }
+      return [];
+    } catch (error) {
+      console.warn('Could not pre-discover plugin modules:', error);
+      return [];
+    }
   }
 
-  static registerAsync(options: PluginCoreAsyncConfig): DynamicModule {
-    return {
-      module: PluginCoreModule,
-      imports: options.imports || [],
-      providers: [
-        ...this.createAsyncProviders(options),
-        ...this.createCoreProviders(),
-      ],
-      exports: [PLUGIN_CORE_CONFIG, ...this.createCoreExports()],
-    };
-  }
+  private static createPluginModule(
+    manifest: any,
+    basePath: string,
+    pluginDir: string
+  ): any {
+    const require = createRequire(__filename);
+    try {
+      const distPath = path.join(basePath, pluginDir, 'dist');
+      if (!fs.existsSync(distPath)) {
+        return null;
+      }
 
-  static forFeature(config: PluginFeatureConfig): DynamicModule {
-    return {
-      module: PluginCoreModule,
-      providers: [
-        {
-          provide: `${String(PLUGIN_FEATURE_CONFIG)}_${config.name}`,
-          useValue: config,
-        },
-      ],
-      exports: [`${String(PLUGIN_FEATURE_CONFIG)}_${config.name}`],
-    };
-  }
+      const controllers: any[] = [];
+      const providers: any[] = [];
+      const exports: any[] = [];
+      const pluginDist = require(distPath);
+      manifest.module.controllers?.forEach((controllerName: string) => {
+        if (pluginDist[controllerName]) {
+          const controllerClass = pluginDist[controllerName];
+          controllers.push(controllerClass);
+        }
+      });
+      manifest.module.providers?.forEach((providerName: string) => {
+        if (pluginDist[providerName]) {
+          const providerClass = pluginDist[providerName];
+          providers.push(providerClass);
+        }
+      });
 
-  static forFeatureAsync(options: PluginFeatureAsyncConfig): DynamicModule {
-    return {
-      module: PluginCoreModule,
-      imports: options.imports || [],
-      providers: [...this.createFeatureAsyncProviders(options)],
-      exports: [`${String(PLUGIN_FEATURE_CONFIG)}_${options.name}`],
-    };
+      manifest.module.exports?.forEach((exportName: string) => {
+        if (pluginDist[exportName]) {
+          const exportClass = pluginDist[exportName];
+          exports.push(exportClass);
+        }
+      });
+      if (controllers.length > 0 || providers.length > 0) {
+        const DynamicPluginModule = class {};
+        Object.defineProperty(DynamicPluginModule, 'name', {
+          value: `${manifest.name
+            .replace('@plugins/', '')
+            .replace(/^[a-z]/, (c: string) => c.toUpperCase())
+            .replace(/-/g, '')}Module`,
+        });
+        return {
+          module: DynamicPluginModule,
+          controllers,
+          providers,
+          exports,
+        };
+      }
+      return null;
+    } catch (error) {
+      console.warn(
+        `Failed to create plugin module for ${manifest.name}:`,
+        error
+      );
+      return null;
+    }
   }
 
   private static createCoreProviders(): Provider[] {
     return [
-      // Core service
       PluginCore,
 
-      // Discovery & Loading
+      {
+        provide: 'PLUGIN_MODULE_REGISTRY',
+        useValue: new Map(),
+      },
+
       PluginDiscoveryService,
       PluginLoaderService,
       PluginLoaderFactory,
@@ -139,19 +171,15 @@ export class PluginCoreModule {
       DefaultPluginLoaderStrategy,
       DynamicPluginModuleGeneratorService,
 
-      // Coordination
       PluginLoaderCoordinatorService,
       PluginLoaderCoordinatorFactory,
 
-      // Orchestration
       PluginOrchestratorService,
 
-      // Lifecycle & State
       PluginStateManagerService,
       PluginInstantiationService,
       PluginPostLoadVerificationService,
 
-      // Security & Resources
       PluginSecurityManagerService,
       PluginMemoryManagerService,
       PluginDependencyResolverService,
@@ -160,10 +188,8 @@ export class PluginCoreModule {
 
   private static createCoreExports(): (string | symbol | Type<any>)[] {
     return [
-      // Core service
       PluginCore,
 
-      // Discovery & Loading
       PluginDiscoveryService,
       PluginLoaderService,
       PluginLoaderFactory,
@@ -173,19 +199,15 @@ export class PluginCoreModule {
       DefaultPluginLoaderStrategy,
       DynamicPluginModuleGeneratorService,
 
-      // Coordination
       PluginLoaderCoordinatorService,
       PluginLoaderCoordinatorFactory,
 
-      // Orchestration
       PluginOrchestratorService,
 
-      // Lifecycle & State
       PluginStateManagerService,
       PluginInstantiationService,
       PluginPostLoadVerificationService,
 
-      // Security & Resources
       PluginSecurityManagerService,
       PluginMemoryManagerService,
       PluginDependencyResolverService,
@@ -223,41 +245,6 @@ export class PluginCoreModule {
       provide: PLUGIN_CORE_CONFIG,
       useFactory: async (optionsFactory: PluginCoreOptionsFactory) =>
         await optionsFactory.createPluginCoreOptions(),
-      inject: [options.useExisting || options.useClass!],
-    };
-  }
-
-  private static createFeatureAsyncProviders(
-    options: PluginFeatureAsyncConfig
-  ): Provider[] {
-    if (options.useExisting || options.useFactory) {
-      return [this.createFeatureAsyncConfigProvider(options)];
-    }
-
-    return [
-      this.createFeatureAsyncConfigProvider(options),
-      {
-        provide: options.useClass!,
-        useClass: options.useClass!,
-      },
-    ];
-  }
-
-  private static createFeatureAsyncConfigProvider(
-    options: PluginFeatureAsyncConfig
-  ): Provider {
-    if (options.useFactory) {
-      return {
-        provide: `${String(PLUGIN_FEATURE_CONFIG)}_${options.name}`,
-        useFactory: options.useFactory,
-        inject: options.inject || [],
-      };
-    }
-
-    return {
-      provide: `${String(PLUGIN_FEATURE_CONFIG)}_${options.name}`,
-      useFactory: async (optionsFactory: PluginFeatureOptionsFactory) =>
-        await optionsFactory.createPluginFeatureOptions(),
       inject: [options.useExisting || options.useClass!],
     };
   }

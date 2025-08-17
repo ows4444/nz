@@ -13,6 +13,7 @@ export interface PluginCoreConfig {
   maxConcurrentLoads?: number;
   enableHotReload?: boolean;
   cacheEnabled?: boolean;
+  skipRuntimeLoading?: boolean;
   securityConfig?: PluginSecurityConfig;
   resourceLimits?: DefaultResourceLimits;
   logging?: PluginLoggingConfig;

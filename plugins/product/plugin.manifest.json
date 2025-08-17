@@ -1,0 +1,25 @@
+{
+  "name": "@plugins/product",
+  "version": "0.1.0",
+  "description": "Product plugin for Nizaami platform",
+  "author": "Plugin Developer",
+  "license": "MIT",
+  "keywords": ["nizaami", "plugin", "product"],
+  "dependencies": [],
+  "loadOrder": 1,
+  "critical": false,
+  "security": {
+    "trustLevel": "unverified"
+  },
+  "permissions": {
+    "services": [],
+    "modules": []
+  },
+  "module": {
+    "controllers": ["ProductController"],
+    "providers": ["ProductService"],
+    "exports": ["ProductService"],
+    "crossPluginServices": [],
+    "guards": []
+  }
+}

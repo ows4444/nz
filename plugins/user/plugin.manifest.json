@@ -1,0 +1,25 @@
+{
+  "name": "@plugins/user",
+  "version": "0.1.0",
+  "description": "User plugin for Nizaami platform",
+  "author": "Plugin Developer",
+  "license": "MIT",
+  "keywords": ["nizaami", "plugin", "user"],
+  "dependencies": [],
+  "loadOrder": 0,
+  "critical": false,
+  "security": {
+    "trustLevel": "unverified"
+  },
+  "permissions": {
+    "services": [],
+    "modules": []
+  },
+  "module": {
+    "controllers": ["UserController"],
+    "providers": ["UserService"],
+    "exports": ["UserService"],
+    "crossPluginServices": [],
+    "guards": []
+  }
+}

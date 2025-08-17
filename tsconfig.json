@@ -14,6 +14,15 @@
     },
     {
       "path": "./plugins/auth"
+    },
+    {
+      "path": "./libs/plugin-core"
+    },
+    {
+      "path": "./plugins/product"
+    },
+    {
+      "path": "./plugins/user"
     }
   ]
 }
