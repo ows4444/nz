@@ -5,3 +5,4 @@ export * from './plugin-core-config.interface';
 export * from './plugin-component-types';
 export * from './plugin-module-types';
 export * from './plugin-service-interfaces';
+export * from './plugin-lifecycle-types';

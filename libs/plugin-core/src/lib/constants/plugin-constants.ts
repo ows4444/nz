@@ -38,6 +38,7 @@ export const PLUGIN_CONSTANTS = {
   MESSAGES: {
     PLUGIN_DISCOVERED: 'Plugin discovered',
     PLUGIN_LOADED: 'Plugin loaded successfully',
+    PLUGIN_ENABLED: 'Plugin enabled',
     PLUGIN_DISABLED: 'Plugin disabled',
     PLUGIN_FAILED: 'Plugin failed to load',
     PLUGIN_FOUND: 'Found plugin',

@@ -7,6 +7,7 @@ import { PluginDiscoveryService } from './plugin-discovery.service';
 import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginModuleFactory } from './plugin-module-factory.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
+import { PluginLifecycleService } from './plugin-lifecycle.service';
 
 @Module({})
 export class PluginCoreModule {
@@ -21,11 +22,11 @@ export class PluginCoreModule {
   }
 
   private static createCoreProviders(): Provider[] {
-    return [PluginMetadataService, PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator];
+    return [PluginMetadataService, PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService];
   }
 
   private static createCoreExports(): (string | symbol | Type<any>)[] {
-    return [PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator];
+    return [PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService];
   }
 
   private static createAsyncProviders(options: PluginCoreAsyncConfig): Provider[] {

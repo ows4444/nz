@@ -6,6 +6,7 @@ import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginErrorHandler, PluginErrorCode } from './plugin-error-handler.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
 import { PluginMetadataService } from './plugin-metadata.service';
+import { PluginLifecycleService } from './plugin-lifecycle.service';
 import { PLUGIN_CONSTANTS } from '../constants';
 
 /**
@@ -19,14 +20,20 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
   private isInitialized = false;
   private readonly startTime = Date.now();
 
-  constructor(private readonly pluginMetadataService: PluginMetadataService) {}
+  constructor(
+    private readonly pluginMetadataService: PluginMetadataService,
+    private readonly pluginLifecycleService: PluginLifecycleService
+  ) {}
 
   /**
    * Discover and load plugin modules from configuration
    */
   static discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[] {
-    return (
-      PluginErrorHandler.wrapWithErrorHandling(() => PluginDiscoveryService.discoverPluginModules(options), PluginErrorCode.LOADING_FAILED, PLUGIN_CONSTANTS.ERRORS.LOADING_FAILED, 'system') || []
+    return PluginErrorHandler.wrapDiscoveryOperation(
+      () => PluginDiscoveryService.discoverPluginModules(options),
+      PluginErrorCode.LOADING_FAILED,
+      PLUGIN_CONSTANTS.ERRORS.LOADING_FAILED,
+      'system'
     );
   }
 
@@ -34,48 +41,36 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
    * Create a plugin module from manifest and paths
    */
   static createPluginModule(manifest: any, basePath: string, pluginDir: string): PluginModuleCreationResult {
-    const result = PluginErrorHandler.wrapWithErrorHandling(
+    return PluginErrorHandler.wrapModuleCreationOperation(
       () => PluginModuleFactory.createPluginModule(manifest, basePath, pluginDir),
       PluginErrorCode.LOADING_FAILED,
       PLUGIN_CONSTANTS.ERRORS.LOADING_FAILED,
+      (error: string) => ({
+        success: false,
+        error,
+        warnings: [],
+      }),
       manifest?.name,
       'module'
     );
-
-    if (result && result.module) {
-      return {
-        success: true,
-        module: result.module,
-        manifest: result.manifest,
-        warnings: [],
-      };
-    }
-
-    return {
-      success: false,
-      error: PLUGIN_CONSTANTS.ERRORS.LOADING_FAILED,
-      warnings: [],
-    };
   }
 
   /**
    * Validate and discover plugin directories
    */
   static discoverAndValidatePluginManifests(resolvedPath: string, pluginPaths: string[]): string[] {
-    return (
-      PluginErrorHandler.wrapWithErrorHandling(
-        () => PluginManifestValidator.discoverValidPluginDirs(resolvedPath, pluginPaths),
-        PluginErrorCode.VALIDATION_FAILED,
-        PLUGIN_CONSTANTS.ERRORS.VALIDATION_FAILED,
-        'system'
-      ) || []
+    return PluginErrorHandler.wrapDiscoveryOperation(
+      () => PluginManifestValidator.discoverValidPluginDirs(resolvedPath, pluginPaths),
+      PluginErrorCode.VALIDATION_FAILED,
+      PLUGIN_CONSTANTS.ERRORS.VALIDATION_FAILED,
+      'system'
     );
   }
 
   /**
    * Register a loaded plugin with enhanced metadata
    */
-  registerPlugin(pluginName: string, pluginInstance: any, module?: Type<any>, manifest?: any): void {
+  async registerPlugin(pluginName: string, pluginInstance: any, module?: Type<any>, manifest?: any): Promise<void> {
     if (this.loadedPlugins.has(pluginName)) {
       this.logger.warn(`Plugin ${pluginName} is already registered, overwriting`);
     }
@@ -97,6 +92,19 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
 
     this.loadedPlugins.set(pluginName, entry);
     this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_DISCOVERED}: ${pluginName}`);
+
+    // Emit load lifecycle event
+    try {
+      await this.pluginLifecycleService.emit('load', {
+        pluginName,
+        manifest,
+        instance: pluginInstance,
+        timestamp: new Date(),
+        context: { module: module?.name }
+      });
+    } catch (error) {
+      this.logger.error(`Error emitting load event for plugin ${pluginName}:`, error);
+    }
   }
 
   /**
@@ -159,11 +167,24 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
   /**
    * Mark a plugin as inactive
    */
-  deactivatePlugin(pluginName: string): boolean {
+  async deactivatePlugin(pluginName: string): Promise<boolean> {
     const plugin = this.loadedPlugins.get(pluginName);
     if (plugin) {
       plugin.status = 'inactive';
       this.logger.log(`Plugin ${pluginName} deactivated`);
+
+      // Emit disable lifecycle event
+      try {
+        await this.pluginLifecycleService.emit('disable', {
+          pluginName,
+          manifest: plugin.manifest,
+          instance: plugin.instance,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        this.logger.error(`Error emitting disable event for plugin ${pluginName}:`, error);
+      }
+
       return true;
     }
     return false;
@@ -172,15 +193,82 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
   /**
    * Mark a plugin as active
    */
-  activatePlugin(pluginName: string): boolean {
+  async activatePlugin(pluginName: string): Promise<boolean> {
     const plugin = this.loadedPlugins.get(pluginName);
     if (plugin) {
       plugin.status = 'active';
       plugin.lastActivity = new Date();
       this.logger.log(`Plugin ${pluginName} activated`);
+
+      // Emit enable lifecycle event
+      try {
+        await this.pluginLifecycleService.emit('enable', {
+          pluginName,
+          manifest: plugin.manifest,
+          instance: plugin.instance,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        this.logger.error(`Error emitting enable event for plugin ${pluginName}:`, error);
+      }
+
       return true;
     }
     return false;
+  }
+
+  /**
+   * Remove and unload a plugin
+   */
+  async unloadPlugin(pluginName: string): Promise<boolean> {
+    const plugin = this.loadedPlugins.get(pluginName);
+    if (plugin) {
+      // Emit unload lifecycle event before removal
+      try {
+        await this.pluginLifecycleService.emit('unload', {
+          pluginName,
+          manifest: plugin.manifest,
+          instance: plugin.instance,
+          timestamp: new Date()
+        });
+      } catch (error) {
+        this.logger.error(`Error emitting unload event for plugin ${pluginName}:`, error);
+      }
+
+      this.loadedPlugins.delete(pluginName);
+      this.logger.log(`Plugin ${pluginName} unloaded`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Handle plugin error and emit error event
+   */
+  async handlePluginError(pluginName: string, error: Error): Promise<void> {
+    const plugin = this.loadedPlugins.get(pluginName);
+    if (plugin) {
+      plugin.status = 'error';
+    }
+
+    try {
+      await this.pluginLifecycleService.emit('error', {
+        pluginName,
+        manifest: plugin?.manifest,
+        instance: plugin?.instance,
+        timestamp: new Date(),
+        error
+      });
+    } catch (lifecycleError) {
+      this.logger.error(`Error emitting error event for plugin ${pluginName}:`, lifecycleError);
+    }
+  }
+
+  /**
+   * Get the lifecycle service for direct access
+   */
+  getLifecycleService(): PluginLifecycleService {
+    return this.pluginLifecycleService;
   }
 
   /**
@@ -206,11 +294,11 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
     const pluginWrappers = this.pluginMetadataService.findAllPluginWrappers();
 
     for (const { wrapper, metadata, type } of pluginWrappers) {
-      this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_FOUND} ${type}: ${wrapper.metatype?.name}`, metadata);
+      this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_FOUND} ${type}: ${wrapper.metatype?.name } ${JSON.stringify(metadata)}`);
 
       if (wrapper.metatype && metadata.enabled !== false) {
         this.pluginMetadataService.updatePluginMetadata(wrapper, metadata);
-        this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_DISABLED} ${type}: ${wrapper.metatype.name}`);
+        this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_ENABLED} ${type}: ${wrapper.metatype.name}`);
       }
     }
   }

@@ -11,6 +11,12 @@ import { PLUGIN_CONSTANTS } from '../constants';
 export class PluginDiscoveryService {
   private readonly logger = new Logger(PluginDiscoveryService.name);
 
+  // Static singleton instances for performance optimization
+  private static manifestValidatorInstance: PluginManifestValidator | null = null;
+  private static moduleFactoryInstance: PluginModuleFactory | null = null;
+  private static configValidatorInstance: PluginConfigValidator | null = null;
+  private static discoveryServiceInstance: PluginDiscoveryService | null = null;
+
   constructor(private readonly manifestValidator: PluginManifestValidator, private readonly moduleFactory: PluginModuleFactory, private readonly configValidator: PluginConfigValidator) {}
 
   discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[] {
@@ -39,10 +45,86 @@ export class PluginDiscoveryService {
     }
   }
 
+  /**
+   * Get or create singleton instance of PluginManifestValidator
+   */
+  private static getManifestValidatorInstance(): PluginManifestValidator {
+    if (!this.manifestValidatorInstance) {
+      this.manifestValidatorInstance = new PluginManifestValidator();
+    }
+    return this.manifestValidatorInstance;
+  }
+
+  /**
+   * Get or create singleton instance of PluginModuleFactory
+   */
+  private static getModuleFactoryInstance(): PluginModuleFactory {
+    if (!this.moduleFactoryInstance) {
+      this.moduleFactoryInstance = new PluginModuleFactory();
+    }
+    return this.moduleFactoryInstance;
+  }
+
+  /**
+   * Get or create singleton instance of PluginConfigValidator
+   */
+  private static getConfigValidatorInstance(): PluginConfigValidator {
+    if (!this.configValidatorInstance) {
+      this.configValidatorInstance = new PluginConfigValidator();
+    }
+    return this.configValidatorInstance;
+  }
+
+  /**
+   * Get or create singleton instance of PluginDiscoveryService
+   */
+  private static getDiscoveryServiceInstance(): PluginDiscoveryService {
+    if (!this.discoveryServiceInstance) {
+      this.discoveryServiceInstance = new PluginDiscoveryService(
+        this.getManifestValidatorInstance(),
+        this.getModuleFactoryInstance(),
+        this.getConfigValidatorInstance()
+      );
+    }
+    return this.discoveryServiceInstance;
+  }
+
   static discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[] {
-    // Legacy static method for backward compatibility
-    const instance = new PluginDiscoveryService(new PluginManifestValidator(), new PluginModuleFactory(), new PluginConfigValidator());
+    // Optimized static method using singleton instances for better performance
+    const instance = this.getDiscoveryServiceInstance();
     return instance.discoverPluginModules(options);
+  }
+
+  /**
+   * Clear singleton instances (useful for testing or memory cleanup)
+   */
+  static clearSingletonInstances(): void {
+    this.manifestValidatorInstance = null;
+    this.moduleFactoryInstance = null;
+    this.configValidatorInstance = null;
+    this.discoveryServiceInstance = null;
+  }
+
+  /**
+   * Get performance statistics for singleton instances
+   */
+  static getSingletonStats(): {
+    manifestValidatorCreated: boolean;
+    moduleFactoryCreated: boolean;
+    configValidatorCreated: boolean;
+    discoveryServiceCreated: boolean;
+    allInstancesCreated: boolean;
+  } {
+    return {
+      manifestValidatorCreated: this.manifestValidatorInstance !== null,
+      moduleFactoryCreated: this.moduleFactoryInstance !== null,
+      configValidatorCreated: this.configValidatorInstance !== null,
+      discoveryServiceCreated: this.discoveryServiceInstance !== null,
+      allInstancesCreated: this.manifestValidatorInstance !== null && 
+                          this.moduleFactoryInstance !== null && 
+                          this.configValidatorInstance !== null && 
+                          this.discoveryServiceInstance !== null
+    };
   }
 
   private getPluginOptionsSync(options: PluginCoreAsyncConfig): PluginCoreConfig | null {

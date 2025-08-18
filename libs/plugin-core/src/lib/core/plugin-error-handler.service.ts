@@ -117,4 +117,36 @@ export class PluginErrorHandler {
       return null;
     }
   }
+
+  /**
+   * Specialized error handling for operations that should return empty arrays on failure
+   */
+  static wrapDiscoveryOperation<T>(operation: () => T[], errorCode: PluginErrorCode, errorMessage: string, pluginName?: string): T[] {
+    return this.wrapWithErrorHandling(operation, errorCode, errorMessage, pluginName) || [];
+  }
+
+  /**
+   * Specialized error handling for plugin module creation operations
+   */
+  static wrapModuleCreationOperation<T>(
+    operation: () => T,
+    errorCode: PluginErrorCode,
+    errorMessage: string,
+    createFailureResult: (error: string) => any,
+    pluginName?: string,
+    component?: string
+  ): any {
+    const result = this.wrapWithErrorHandling(operation, errorCode, errorMessage, pluginName, component);
+    
+    if (result && (result as any).module) {
+      return {
+        success: true,
+        module: (result as any).module,
+        manifest: (result as any).manifest,
+        warnings: [],
+      };
+    }
+
+    return createFailureResult(errorMessage);
+  }
 }

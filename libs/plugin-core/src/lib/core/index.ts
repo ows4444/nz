@@ -9,3 +9,4 @@ export * from './plugin-component-loader.service';
 export * from './plugin-config-validator.service';
 export * from './plugin-error-handler.service';
 export * from './plugin-utility.service';
+export * from './plugin-lifecycle.service';
