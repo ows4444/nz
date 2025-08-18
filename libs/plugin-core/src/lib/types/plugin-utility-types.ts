@@ -7,7 +7,7 @@ import { PluginState, PluginManifest, PluginInstance } from './plugin-strict-int
 /**
  * Plugin event types
  */
-export type PluginEventType = 
+export type PluginEventType =
   | 'plugin:loading'
   | 'plugin:loaded'
   | 'plugin:starting'

@@ -12,19 +12,13 @@
       "skipFiles": ["<node_internals>/**"],
       "sourceMaps": true,
       "smartStep": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/plugin-host/dist/**/*.js",
-        "!**/node_modules/**"
-      ],
+      "outFiles": ["${workspaceFolder}/apps/plugin-host/dist/**/*.js", "!**/node_modules/**"],
       "sourceMapPathOverrides": {
         "webpack:///./src/*": "${workspaceFolder}/apps/plugin-host/src/*",
         "webpack:///./*": "${workspaceFolder}/apps/plugin-host/*",
         "${workspaceFolder}/apps/plugin-host/*": "${workspaceFolder}/apps/plugin-host/*"
       },
-      "resolveSourceMapLocations": [
-        "${workspaceFolder}/apps/plugin-host/**",
-        "!**/node_modules/**"
-      ]
+      "resolveSourceMapLocations": ["${workspaceFolder}/apps/plugin-host/**", "!**/node_modules/**"]
     },
     {
       "name": "Attach to plugin-host",
@@ -34,19 +28,13 @@
       "type": "node",
       "sourceMaps": true,
       "smartStep": true,
-      "outFiles": [
-        "${workspaceFolder}/apps/plugin-host/dist/**/*.js",
-        "!**/node_modules/**"
-      ],
+      "outFiles": ["${workspaceFolder}/apps/plugin-host/dist/**/*.js", "!**/node_modules/**"],
       "sourceMapPathOverrides": {
         "webpack:///./src/*": "${workspaceFolder}/apps/plugin-host/src/*",
         "webpack:///./*": "${workspaceFolder}/apps/plugin-host/*",
         "${workspaceFolder}/apps/plugin-host/*": "${workspaceFolder}/apps/plugin-host/*"
       },
-      "resolveSourceMapLocations": [
-        "${workspaceFolder}/apps/plugin-host/**",
-        "!**/node_modules/**"
-      ]
+      "resolveSourceMapLocations": ["${workspaceFolder}/apps/plugin-host/**", "!**/node_modules/**"]
     },
     {
       "name": "Launch plugin-host (Production)",

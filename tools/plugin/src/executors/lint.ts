@@ -2,12 +2,9 @@ import { PromiseExecutor, ExecutorContext } from '@nx/devkit';
 import { execSync } from 'child_process';
 import { LintExecutorSchema } from './schema';
 
-const runExecutor: PromiseExecutor<LintExecutorSchema> = async (
-  options,
-  context: ExecutorContext
-) => {
+const runExecutor: PromiseExecutor<LintExecutorSchema> = async (options, context: ExecutorContext) => {
   const { projectName, root, projectsConfigurations } = context;
-  
+
   if (!projectName) {
     throw new Error('Project name is required');
   }
@@ -23,7 +20,7 @@ const runExecutor: PromiseExecutor<LintExecutorSchema> = async (
 
   try {
     console.log(`Linting ${projectName}...`);
-    const quotedPatterns = lintPatterns.map(pattern => `"${pattern}"`).join(' ');
+    const quotedPatterns = lintPatterns.map((pattern) => `"${pattern}"`).join(' ');
     execSync(`npx eslint ${quotedPatterns}${fixFlag}`, {
       cwd: root,
       stdio: 'inherit',

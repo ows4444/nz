@@ -5,8 +5,8 @@
   "author": "Plugin Developer",
   "license": "MIT",
   "keywords": ["nizaami", "plugin", "user"],
-  "dependencies": [],
-  "loadOrder": 0,
+  "dependencies": ["@plugins/auth"],
+  "loadOrder": 200,
   "critical": false,
   "security": {
     "trustLevel": "unverified"

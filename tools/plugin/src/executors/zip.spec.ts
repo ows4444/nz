@@ -28,7 +28,7 @@ describe('Zip Executor', () => {
   it('should throw error when project name is missing', async () => {
     const options: ZipExecutorSchema = {};
     const contextWithoutProject = { ...mockContext, projectName: undefined };
-    
+
     await expect(executor(options, contextWithoutProject)).rejects.toThrow('Project name is required');
   });
 
@@ -38,7 +38,7 @@ describe('Zip Executor', () => {
       ...mockContext,
       projectName: 'missing-project',
     };
-    
+
     await expect(executor(options, contextWithMissingProject)).rejects.toThrow('Project missing-project not found');
   });
 

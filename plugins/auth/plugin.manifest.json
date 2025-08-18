@@ -6,7 +6,7 @@
   "license": "MIT",
   "keywords": ["nizaami", "plugin", "auth"],
   "dependencies": [],
-  "loadOrder": -1,
+  "loadOrder": 100,
   "critical": false,
   "security": {
     "trustLevel": "unverified"

@@ -16,16 +16,8 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/tools/plugin',
   // Improved test discovery and performance
-  testMatch: [
-    '<rootDir>/src/**/*.(test|spec).[jt]s?(x)',
-    '<rootDir>/src/**/__tests__/**/*.[jt]s?(x)',
-  ],
-  collectCoverageFrom: [
-    'src/**/*.[jt]s',
-    '!src/**/*.spec.[jt]s',
-    '!src/**/*.test.[jt]s',
-    '!src/**/index.[jt]s',
-  ],
+  testMatch: ['<rootDir>/src/**/*.(test|spec).[jt]s?(x)', '<rootDir>/src/**/__tests__/**/*.[jt]s?(x)'],
+  collectCoverageFrom: ['src/**/*.[jt]s', '!src/**/*.spec.[jt]s', '!src/**/*.test.[jt]s', '!src/**/index.[jt]s'],
   // Enable cache for better performance
   cache: true,
   // Parallel testing

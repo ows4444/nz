@@ -1,7 +1,7 @@
 /**
  * Semantic version information for plugins
  */
-export interface PluginVersion {
+export interface IPluginVersion {
   major: number;
   minor: number;
   patch: number;
@@ -13,7 +13,7 @@ export interface PluginVersion {
 /**
  * Base plugin metadata
  */
-export interface Plugin {
+export interface IPlugin {
   id: string;
   name: string;
   version: string;
@@ -80,16 +80,7 @@ export type GuardEntry = LocalGuardEntry | ExternalGuardEntry | GlobalGuardEntry
 export interface CrossPluginServiceConfig {
   serviceName: string;
   token: string;
-  global?: boolean;
-  description?: string;
-  version?: string;
-  compatibleVersions?: string[];
-  deprecated?: {
-    since: string;
-    removeIn: string;
-    replacement?: string;
-    reason?: string;
-  };
+  source: string;
 }
 
 /**
@@ -170,7 +161,7 @@ export interface PluginPermissions {
 /**
  * Complete plugin manifest containing all plugin configuration
  */
-export interface PluginManifest extends Plugin {
+export interface PluginManifest extends IPlugin {
   loadOrder?: number;
   critical?: boolean;
   entryPoint: string;
@@ -197,7 +188,7 @@ export interface PluginInstanceMethods {
  * Runtime representation of a loaded plugin
  */
 export interface PluginInstance {
-  plugin: Plugin;
+  plugin: IPlugin;
   instance: PluginInstanceMethods | unknown;
   state: PluginState;
   metadata: PluginMetadata;
@@ -237,7 +228,7 @@ export enum PluginState {
   STOPPED = 'stopped',
   ERROR = 'error',
   UNLOADING = 'unloading',
-  FAILED = 'failed'
+  FAILED = 'failed',
 }
 
 /**

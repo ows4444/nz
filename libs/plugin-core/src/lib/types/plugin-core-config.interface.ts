@@ -1,10 +1,10 @@
-import { ModuleMetadata, Type } from '@nestjs/common';
+import { ModuleMetadata, Type, SetMetadata, CustomDecorator } from '@nestjs/common';
 
 /**
  * Core configuration for the plugin system
  */
 export interface PluginCoreConfig {
-  searchPaths?: string[];
+  searchPaths: string[];
   autoStart?: boolean;
   enableMemoryMonitoring?: boolean;
   defaultTimeout?: number;
@@ -101,4 +101,12 @@ export interface PluginFeatureOptionsFactory {
 }
 
 export const PLUGIN_CORE_CONFIG = Symbol('PLUGIN_CORE_CONFIG');
-export const PLUGIN_FEATURE_CONFIG = Symbol('PLUGIN_FEATURE_CONFIG');
+
+export interface PluginOptions {
+  name: string;
+  enabled?: boolean;
+}
+
+export const PLUGIN_META_KEY = 'plugin:options';
+
+export const Plugin = (options: PluginOptions): CustomDecorator<string> => SetMetadata(PLUGIN_META_KEY, options);

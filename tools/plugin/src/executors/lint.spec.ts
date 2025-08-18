@@ -28,7 +28,7 @@ describe('Lint Executor', () => {
   it('should throw error when project name is missing', async () => {
     const options: LintExecutorSchema = {};
     const contextWithoutProject = { ...mockContext, projectName: undefined };
-    
+
     await expect(executor(options, contextWithoutProject)).rejects.toThrow('Project name is required');
   });
 
@@ -38,7 +38,7 @@ describe('Lint Executor', () => {
       ...mockContext,
       projectName: 'missing-project',
     };
-    
+
     await expect(executor(options, contextWithMissingProject)).rejects.toThrow('Project missing-project not found');
   });
 
@@ -47,7 +47,7 @@ describe('Lint Executor', () => {
     jest.mock('child_process', () => ({
       execSync: jest.fn(),
     }));
-    
+
     // This test would need more setup to actually run without errors
     // For now, just test the basic structure
     expect(typeof executor).toBe('function');

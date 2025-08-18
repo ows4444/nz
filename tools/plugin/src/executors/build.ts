@@ -4,12 +4,9 @@ import { existsSync, mkdirSync, copyFileSync } from 'fs';
 import { join } from 'path';
 import { BuildExecutorSchema } from './schema';
 
-const runExecutor: PromiseExecutor<BuildExecutorSchema> = async (
-  options,
-  context: ExecutorContext
-) => {
+const runExecutor: PromiseExecutor<BuildExecutorSchema> = async (options, context: ExecutorContext) => {
   const { projectName, root, projectsConfigurations } = context;
-  
+
   if (!projectName) {
     throw new Error('Project name is required');
   }
