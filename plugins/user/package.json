@@ -1,8 +1,7 @@
 {
   "name": "@plugins/user",
   "version": "0.0.1",
-  "private": true,
-  "main": "./src/index.ts",
+  "private": true, 
   "types": "./src/index.ts",
   "exports": {
     ".": {
@@ -13,8 +12,6 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.0",
-    "reflect-metadata": "^0.1.13",
-    "rxjs": "^7.8.0"
+    "@nestjs/common": "^11.0.0"
   }
 }
