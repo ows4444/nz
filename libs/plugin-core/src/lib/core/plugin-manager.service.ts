@@ -7,6 +7,9 @@ import { PluginErrorHandler, PluginErrorCode } from './plugin-error-handler.serv
 import { PluginConfigValidator } from './plugin-config-validator.service';
 import { PluginMetadataService } from './plugin-metadata.service';
 import { PluginLifecycleService } from './plugin-lifecycle.service';
+import { PluginRegistryService } from './plugin-registry.service';
+import { PluginStatisticsService } from './plugin-statistics.service';
+import { PluginLifecycleManagerService } from './plugin-lifecycle-manager.service';
 import { PLUGIN_CONSTANTS } from '../constants';
 
 /**
@@ -16,11 +19,14 @@ import { PLUGIN_CONSTANTS } from '../constants';
 @Injectable()
 export class PluginManagerService implements OnApplicationBootstrap, OnApplicationShutdown, OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PluginManagerService.name);
-  private readonly loadedPlugins = new Map<string, EnhancedPluginRegistryEntry>();
   private isInitialized = false;
-  private readonly startTime = Date.now();
 
-  constructor(private readonly pluginMetadataService: PluginMetadataService, private readonly pluginLifecycleService: PluginLifecycleService) {}
+  constructor(
+    private readonly pluginMetadataService: PluginMetadataService,
+    private readonly pluginRegistryService: PluginRegistryService,
+    private readonly pluginStatisticsService: PluginStatisticsService,
+    private readonly pluginLifecycleManagerService: PluginLifecycleManagerService
+  ) {}
 
   /**
    * Discover and load plugin modules from configuration
@@ -63,204 +69,84 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
    * Register a loaded plugin with enhanced metadata
    */
   async registerPlugin(pluginName: string, pluginInstance: any, module?: Type<any>, manifest?: any): Promise<void> {
-    if (this.loadedPlugins.has(pluginName)) {
-      this.logger.warn(`Plugin ${pluginName} is already registered, overwriting`);
-    }
-
-    const entry: EnhancedPluginRegistryEntry = {
-      name: pluginName,
-      instance: pluginInstance,
-      module: module as Type<any>,
-      manifest,
-      registeredAt: new Date(),
-      status: 'active',
-      lastActivity: new Date(),
-      metrics: {
-        loadTime: Date.now() - this.startTime,
-        memoryUsage: 0,
-        requestCount: 0,
-      },
-    };
-
-    this.loadedPlugins.set(pluginName, entry);
-    this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.PLUGIN_DISCOVERED}: ${pluginName}`);
-
-    // Emit load lifecycle event
-    try {
-      await this.pluginLifecycleService.emit('load', {
-        pluginName,
-        manifest,
-        instance: pluginInstance,
-        timestamp: new Date(),
-        context: { module: module?.name },
-      });
-    } catch (error) {
-      this.logger.error(`Error emitting load event for plugin ${pluginName}:`, error);
-    }
+    return await this.pluginLifecycleManagerService.registerPlugin(pluginName, pluginInstance, module, manifest);
   }
 
   /**
    * Get a loaded plugin entry by name
    */
   getPlugin(pluginName: string): EnhancedPluginRegistryEntry | undefined {
-    return this.loadedPlugins.get(pluginName);
+    return this.pluginRegistryService.get(pluginName);
   }
 
   /**
    * Get plugin instance by name
    */
   getPluginInstance(pluginName: string): any | undefined {
-    return this.loadedPlugins.get(pluginName)?.instance;
+    return this.pluginRegistryService.getInstance(pluginName);
   }
 
   /**
    * Get all loaded plugin names
    */
   getLoadedPluginNames(): string[] {
-    return Array.from(this.loadedPlugins.keys());
+    return this.pluginRegistryService.getPluginNames();
   }
 
   /**
    * Get all plugin entries
    */
   getAllPlugins(): EnhancedPluginRegistryEntry[] {
-    return Array.from(this.loadedPlugins.values());
+    return this.pluginRegistryService.getAll();
   }
 
   /**
    * Get comprehensive plugin statistics
    */
   getStatistics(): PluginStatistics {
-    const plugins = this.getAllPlugins();
-    return {
-      totalRegistered: plugins.length,
-      activePlugins: plugins.filter((p) => p.status === 'active').length,
-      inactivePlugins: plugins.filter((p) => p.status === 'inactive').length,
-      errorPlugins: plugins.filter((p) => p.status === 'error').length,
-      pluginNames: plugins.map((p) => p.name),
-      loadTime: plugins.reduce((total, p) => total + (p.metrics?.loadTime || 0), 0),
-      memoryUsage: plugins.reduce((total, p) => total + (p.metrics?.memoryUsage || 0), 0),
-    };
+    return this.pluginStatisticsService.getStatistics();
   }
 
   /**
    * Update plugin activity timestamp
    */
   updatePluginActivity(pluginName: string): void {
-    const plugin = this.loadedPlugins.get(pluginName);
-    if (plugin) {
-      plugin.lastActivity = new Date();
-      if (plugin.metrics) {
-        plugin.metrics.requestCount++;
-      }
-    }
+    this.pluginLifecycleManagerService.updatePluginActivity(pluginName);
   }
 
   /**
    * Mark a plugin as inactive
    */
   async deactivatePlugin(pluginName: string): Promise<boolean> {
-    const plugin = this.loadedPlugins.get(pluginName);
-    if (plugin) {
-      plugin.status = 'inactive';
-      this.logger.log(`Plugin ${pluginName} deactivated`);
-
-      // Emit disable lifecycle event
-      try {
-        await this.pluginLifecycleService.emit('disable', {
-          pluginName,
-          manifest: plugin.manifest,
-          instance: plugin.instance,
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        this.logger.error(`Error emitting disable event for plugin ${pluginName}:`, error);
-      }
-
-      return true;
-    }
-    return false;
+    return await this.pluginLifecycleManagerService.deactivatePlugin(pluginName);
   }
 
   /**
    * Mark a plugin as active
    */
   async activatePlugin(pluginName: string): Promise<boolean> {
-    const plugin = this.loadedPlugins.get(pluginName);
-    if (plugin) {
-      plugin.status = 'active';
-      plugin.lastActivity = new Date();
-      this.logger.log(`Plugin ${pluginName} activated`);
-
-      // Emit enable lifecycle event
-      try {
-        await this.pluginLifecycleService.emit('enable', {
-          pluginName,
-          manifest: plugin.manifest,
-          instance: plugin.instance,
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        this.logger.error(`Error emitting enable event for plugin ${pluginName}:`, error);
-      }
-
-      return true;
-    }
-    return false;
+    return await this.pluginLifecycleManagerService.activatePlugin(pluginName);
   }
 
   /**
    * Remove and unload a plugin
    */
   async unloadPlugin(pluginName: string): Promise<boolean> {
-    const plugin = this.loadedPlugins.get(pluginName);
-    if (plugin) {
-      // Emit unload lifecycle event before removal
-      try {
-        await this.pluginLifecycleService.emit('unload', {
-          pluginName,
-          manifest: plugin.manifest,
-          instance: plugin.instance,
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        this.logger.error(`Error emitting unload event for plugin ${pluginName}:`, error);
-      }
-
-      this.loadedPlugins.delete(pluginName);
-      this.logger.log(`Plugin ${pluginName} unloaded`);
-      return true;
-    }
-    return false;
+    return await this.pluginLifecycleManagerService.unloadPlugin(pluginName);
   }
 
   /**
    * Handle plugin error and emit error event
    */
   async handlePluginError(pluginName: string, error: Error): Promise<void> {
-    const plugin = this.loadedPlugins.get(pluginName);
-    if (plugin) {
-      plugin.status = 'error';
-    }
-
-    try {
-      await this.pluginLifecycleService.emit('error', {
-        pluginName,
-        manifest: plugin?.manifest,
-        instance: plugin?.instance,
-        timestamp: new Date(),
-        error,
-      });
-    } catch (lifecycleError) {
-      this.logger.error(`Error emitting error event for plugin ${pluginName}:`, lifecycleError);
-    }
+    return await this.pluginLifecycleManagerService.handlePluginError(pluginName, error);
   }
 
   /**
    * Get the lifecycle service for direct access
    */
   getLifecycleService(): PluginLifecycleService {
-    return this.pluginLifecycleService;
+    return this.pluginLifecycleManagerService.getLifecycleService();
   }
 
   /**
@@ -315,7 +201,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
       // Mark as initialized
       this.isInitialized = true;
 
-      this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.MANAGER_INITIALIZED} with ${this.loadedPlugins.size} plugins`);
+      this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.MANAGER_INITIALIZED} with ${this.pluginRegistryService.size()} plugins`);
     } catch (error) {
       this.logger.error('Failed to initialize Plugin Manager:', error);
       this.isInitialized = false;
@@ -334,7 +220,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
       this.logger.log('Final plugin statistics:', stats);
 
       // Clear loaded plugins
-      this.loadedPlugins.clear();
+      this.pluginRegistryService.clear();
 
       // Clear errors
       PluginErrorHandler.clearErrors();

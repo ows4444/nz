@@ -3,6 +3,9 @@ import { PluginCoreAsyncConfig, PluginCoreOptionsFactory, PLUGIN_CORE_CONFIG } f
 import { DiscoveryModule } from '@nestjs/core';
 import { PluginMetadataService } from './plugin-metadata.service';
 import { PluginManagerService } from './plugin-manager.service';
+import { PluginRegistryService } from './plugin-registry.service';
+import { PluginStatisticsService } from './plugin-statistics.service';
+import { PluginLifecycleManagerService } from './plugin-lifecycle-manager.service';
 import { PluginDiscoveryService } from './plugin-discovery.service';
 import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginModuleFactory } from './plugin-module-factory.service';
@@ -23,11 +26,34 @@ export class PluginCoreModule {
   }
 
   private static createCoreProviders(): Provider[] {
-    return [PluginMetadataService, PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService, PluginDependencyResolver];
+    return [
+      PluginMetadataService,
+      PluginRegistryService,
+      PluginStatisticsService,
+      PluginLifecycleManagerService,
+      PluginManagerService,
+      PluginDiscoveryService,
+      PluginManifestValidator,
+      PluginModuleFactory,
+      PluginConfigValidator,
+      PluginLifecycleService,
+      PluginDependencyResolver,
+    ];
   }
 
   private static createCoreExports(): (string | symbol | Type<any>)[] {
-    return [PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService, PluginDependencyResolver];
+    return [
+      PluginManagerService,
+      PluginRegistryService,
+      PluginStatisticsService,
+      PluginLifecycleManagerService,
+      PluginDiscoveryService,
+      PluginManifestValidator,
+      PluginModuleFactory,
+      PluginConfigValidator,
+      PluginLifecycleService,
+      PluginDependencyResolver,
+    ];
   }
 
   private static createAsyncProviders(options: PluginCoreAsyncConfig): Provider[] {
