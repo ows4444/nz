@@ -2,6 +2,9 @@ import { DynamicModule, Module, Provider } from '@nestjs/common';
 
 // Core services
 import { DtoOrchestratorService } from './application/services/dto-orchestrator.service';
+import { DtoCacheService } from './application/services/dto-cache.service';
+import { DtoValidationService } from './application/services/dto-validation.service';
+import { DtoBatchProcessor } from './application/services/dto-batch-processor.service';
 import { SchemaOrchestratorService } from './application/services/schema-orchestrator.service';
 
 // Pipelines
@@ -65,6 +68,9 @@ export class DynamicDtoModule extends ConfigurableModuleClass {
         },
 
         // Core Application Services
+        DtoCacheService,
+        DtoValidationService,
+        DtoBatchProcessor,
         DtoOrchestratorService,
         SchemaOrchestratorService,
 
@@ -111,7 +117,7 @@ export class DynamicDtoModule extends ConfigurableModuleClass {
         ValidationErrorService,
         ValidationErrorRecoveryService,
       ],
-      exports: [DtoOrchestratorService, NestedClassGeneratorService, SchemaOrchestratorService, FieldProcessorRegistry, FieldValidatorRegistry, SchemaValidationPipeline, EnhancedCacheMonitorService],
+      exports: [DtoOrchestratorService, DtoCacheService, DtoValidationService, DtoBatchProcessor, NestedClassGeneratorService, SchemaOrchestratorService, FieldProcessorRegistry, FieldValidatorRegistry, SchemaValidationPipeline, EnhancedCacheMonitorService],
     };
   }
 
