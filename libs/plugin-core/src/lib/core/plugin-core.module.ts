@@ -27,12 +27,15 @@ export class PluginCoreModule {
 
   private static createCoreProviders(): Provider[] {
     return [
+      // Core management services - NestJS will automatically manage these as singletons
       PluginMetadataService,
       PluginRegistryService,
       PluginStatisticsService,
       PluginLifecycleManagerService,
       PluginManagerService,
       PluginDiscoveryService,
+      
+      // Core utility services - also managed as singletons by NestJS
       PluginManifestValidator,
       PluginModuleFactory,
       PluginConfigValidator,
