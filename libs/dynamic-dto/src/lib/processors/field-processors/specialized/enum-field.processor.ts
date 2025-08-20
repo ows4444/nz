@@ -271,9 +271,10 @@ export class EnumFieldProcessor extends BaseFieldProcessor<EnumFieldSchema> {
       case 'last':
         return schema.values[schema.values.length - 1]!;
 
-      case 'middle':
+      case 'middle': {
         const middleIndex = Math.floor(schema.values.length / 2);
         return schema.values[middleIndex]!;
+      }
 
       case 'most_common':
         // In absence of usage statistics, return first value

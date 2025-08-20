@@ -5,20 +5,34 @@
 import { Type } from '@nestjs/common';
 import { PluginManifest } from '../core/plugin-strict-interfaces';
 
-export interface PluginComponent {
+/**
+ * Base interface for plugin component instance types
+ */
+export interface PluginComponentInstance {
+  [key: string]: unknown;
+}
+
+/**
+ * Plugin distribution interface for loaded modules
+ */
+export interface PluginDistribution {
+  [componentName: string]: Type<PluginComponentInstance>;
+}
+
+export interface PluginComponent<T extends PluginComponentInstance = PluginComponentInstance> {
   name: string;
   type: 'controller' | 'provider' | 'export';
-  class: Type<any>;
+  class: Type<T>;
 }
 
 export interface PluginModuleComponents {
-  controllers: Type<any>[];
-  providers: Type<any>[];
-  exports: Type<any>[];
+  controllers: Type<PluginComponentInstance>[];
+  providers: Type<PluginComponentInstance>[];
+  exports: Type<PluginComponentInstance>[];
 }
 
 export interface PluginModuleResult {
-  module: Type<any>;
+  module: Type<PluginComponentInstance>;
   components: PluginModuleComponents;
   manifest: PluginManifest;
 }
@@ -31,15 +45,21 @@ export interface PluginLoadingResult {
 }
 
 export interface ComponentLoader {
-  loadComponent(componentName: string, pluginDist: any): Type<any> | null;
-  validateComponent(component: any, componentName: string): boolean;
+  loadComponent<T extends PluginComponentInstance = PluginComponentInstance>(
+    componentName: string, 
+    pluginDist: PluginDistribution
+  ): Type<T> | null;
+  validateComponent<T extends PluginComponentInstance = PluginComponentInstance>(
+    component: Type<T>, 
+    componentName: string
+  ): boolean;
 }
 
 export type PluginComponentType = 'controllers' | 'providers' | 'exports';
 
 export interface ComponentLoadingContext {
   manifest: PluginManifest;
-  pluginDist: any;
+  pluginDist: PluginDistribution;
   basePath: string;
   pluginDir: string;
 }

@@ -4,12 +4,13 @@
 
 import { Type } from '@nestjs/common';
 import { PluginManifest } from '../core/plugin-strict-interfaces';
+import { PluginComponentInstance } from './plugin-component-types';
 
 /**
  * Represents a discovered plugin module ready for loading
  */
 export interface DiscoveredPluginModule {
-  module: Type<any>;
+  module: Type<PluginComponentInstance>;
   manifest: PluginManifest;
   path: string;
   name: string;
@@ -28,10 +29,10 @@ export interface PluginDiscoveryResult {
 /**
  * Enhanced plugin registry entry for tracking loaded plugins with extended metadata
  */
-export interface EnhancedPluginRegistryEntry {
+export interface EnhancedPluginRegistryEntry<T extends PluginComponentInstance = PluginComponentInstance> {
   name: string;
-  instance: any;
-  module: Type<any>;
+  instance: T;
+  module: Type<T>;
   manifest: PluginManifest;
   registeredAt: Date;
   status: 'active' | 'inactive' | 'error';
@@ -72,7 +73,7 @@ export interface PluginDiscoveryOptions {
  */
 export interface PluginModuleCreationResult {
   success: boolean;
-  module?: Type<any>;
+  module?: Type<PluginComponentInstance>;
   error?: string;
   warnings?: string[];
   manifest?: PluginManifest;

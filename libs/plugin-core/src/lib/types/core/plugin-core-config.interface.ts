@@ -59,8 +59,8 @@ export interface PluginLoggingConfig {
 export interface PluginCoreAsyncConfig extends Pick<ModuleMetadata, 'imports'> {
   useExisting?: Type<PluginCoreOptionsFactory>;
   useClass?: Type<PluginCoreOptionsFactory>;
-  useFactory?: (...args: any[]) => Promise<PluginCoreConfig> | PluginCoreConfig;
-  inject?: any[];
+  useFactory?: (...args: unknown[]) => Promise<PluginCoreConfig> | PluginCoreConfig;
+  inject?: (string | symbol | Type<unknown>)[];
 }
 
 /**
@@ -89,8 +89,8 @@ export interface PluginFeatureAsyncConfig extends Pick<ModuleMetadata, 'imports'
   name: string;
   useExisting?: Type<PluginFeatureOptionsFactory>;
   useClass?: Type<PluginFeatureOptionsFactory>;
-  useFactory?: (...args: any[]) => Promise<PluginFeatureConfig> | PluginFeatureConfig;
-  inject?: any[];
+  useFactory?: (...args: unknown[]) => Promise<PluginFeatureConfig> | PluginFeatureConfig;
+  inject?: (string | symbol | Type<unknown>)[];
 }
 
 /**

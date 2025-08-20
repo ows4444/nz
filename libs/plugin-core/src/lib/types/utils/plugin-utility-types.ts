@@ -93,7 +93,7 @@ export interface PluginRuntimeContext {
   searchPaths: string[];
   loadedPlugins: Map<string, PluginInstance>;
   dependencyGraph: Map<string, PluginDependencyNode>;
-  eventEmitter?: any;
+  eventEmitter?: NodeJS.EventEmitter;
 }
 
 /**
@@ -141,10 +141,10 @@ export interface PluginConfigOverride {
 /**
  * Plugin service reference
  */
-export interface PluginServiceReference {
+export interface PluginServiceReference<T = PluginInstance> {
   serviceName: string;
   pluginId: string;
-  instance: any;
+  instance: T;
   version: string;
   exported: boolean;
 }

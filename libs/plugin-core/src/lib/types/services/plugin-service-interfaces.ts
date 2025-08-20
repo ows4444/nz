@@ -1,13 +1,13 @@
 import { Type } from '@nestjs/common';
 import { PluginCoreAsyncConfig, PluginCoreConfig } from '../core/plugin-core-config.interface';
 import { PluginManifest } from '../core/plugin-strict-interfaces';
-import { PluginModuleResult } from '../components/plugin-component-types';
+import { PluginModuleResult, PluginComponentInstance, PluginDistribution } from '../components/plugin-component-types';
 
 /**
  * Interface for plugin discovery operations
  */
 export interface IPluginDiscoveryService {
-  discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[];
+  discoverPluginModules(options: PluginCoreAsyncConfig): Type<PluginComponentInstance>[];
 }
 
 /**
@@ -39,6 +39,12 @@ export interface IPluginConfigValidator {
  * Interface for plugin component loading operations
  */
 export interface IPluginComponentLoader {
-  validateComponent(component: any, componentName: string): boolean;
-  loadComponent(componentName: string, pluginDist: any): Type<any> | null;
+  validateComponent<T extends PluginComponentInstance = PluginComponentInstance>(
+    component: Type<T>, 
+    componentName: string
+  ): boolean;
+  loadComponent<T extends PluginComponentInstance = PluginComponentInstance>(
+    componentName: string, 
+    pluginDist: PluginDistribution
+  ): Type<T> | null;
 }
