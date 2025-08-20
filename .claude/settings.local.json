@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nx run:*)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "Bash(echo \" - status: $?\")",
+      "Bash(mv:*)",
+      "Bash(rmdir:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(nx typecheck:*)",
+      "Bash(nx lint:*)",
+      "Bash(nx build:*)",
+      "Bash(nx test:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
