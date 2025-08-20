@@ -34,17 +34,17 @@ export class EnhancedCacheMonitorService {
   private lastCleanupTime = 0;
 
   constructor(
-    @Inject('ICacheManager') private readonly cacheManager: ICacheManager,
-    config: EnhancedCacheMonitorConfig = {}
+    @Inject('ICacheManager') private readonly cacheManager: ICacheManager
   ) {
+    // Use default configuration
     this.config = {
-      memoryThresholdBytes: config.memoryThresholdBytes ?? 50 * 1024 * 1024, // 50MB
-      utilizationThreshold: config.utilizationThreshold ?? 0.85, // 85%
-      hitRateThreshold: config.hitRateThreshold ?? 0.7, // 70%
-      enableAutoCleanup: config.enableAutoCleanup ?? true,
-      enableAlerting: config.enableAlerting ?? true,
-      alertingIntervalMs: config.alertingIntervalMs ?? 5 * 60 * 1000, // 5 minutes
-      aggressiveCleanupThreshold: config.aggressiveCleanupThreshold ?? 0.95, // 95%
+      memoryThresholdBytes: 50 * 1024 * 1024, // 50MB
+      utilizationThreshold: 0.85, // 85%
+      hitRateThreshold: 0.7, // 70%
+      enableAutoCleanup: true,
+      enableAlerting: true,
+      alertingIntervalMs: 5 * 60 * 1000, // 5 minutes
+      aggressiveCleanupThreshold: 0.95, // 95%
     };
 
     this.logger.log('Enhanced cache monitoring initialized', {
