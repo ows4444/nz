@@ -148,3 +148,30 @@ export interface PluginServiceReference<T = PluginInstance> {
   version: string;
   exported: boolean;
 }
+
+/**
+ * Result of filtering plugins based on dependency resolution
+ */
+export interface PluginDependencyFilterResult {
+  loadablePlugins: unknown[];
+  dependencyErrors: string[];
+  excludedPlugins: string[];
+}
+
+/**
+ * Enhanced result with structured error details
+ */
+export interface EnhancedDependencyFilterResult extends PluginDependencyFilterResult {
+  structuredErrors: Array<{
+    pluginName: string;
+    missingDependencies: string[];
+    errorType: 'missing' | 'circular';
+    affectedPlugins: string[];
+  }>;
+  summary: {
+    totalPlugins: number;
+    loadablePlugins: number;
+    excludedPlugins: number;
+    criticalErrors: number;
+  };
+}

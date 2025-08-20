@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PluginManifest } from '../types';
+import { PluginManifest, PluginDependencyFilterResult, EnhancedDependencyFilterResult } from '../types';
 
 export interface DependencyGraph {
   [pluginName: string]: {
@@ -203,5 +203,137 @@ export class PluginDependencyResolver {
     }
 
     return errors;
+  }
+
+  /**
+   * Filters out plugins with missing dependencies and returns loadable plugins
+   * @param pluginData Array of plugin data
+   * @returns Object containing loadable plugins and dependency errors
+   */
+  filterLoadablePlugins(pluginData: ResolvedPlugin[]): PluginDependencyFilterResult & { loadablePlugins: ResolvedPlugin[] } {
+    const errors: string[] = [];
+    const excludedPlugins: string[] = [];
+    const availablePlugins = new Set(pluginData.map((p) => p.manifest.name));
+    const pluginsWithMissingDeps = new Set<string>();
+
+    // First pass: identify plugins with missing dependencies
+    for (const plugin of pluginData) {
+      const dependencies = plugin.manifest.dependencies || [];
+      for (const depName of dependencies) {
+        if (!availablePlugins.has(depName)) {
+          errors.push(`Plugin "${plugin.manifest.name}" depends on "${depName}" which is not available`);
+          pluginsWithMissingDeps.add(plugin.manifest.name);
+        }
+      }
+    }
+
+    // Second pass: recursively exclude plugins that depend on excluded plugins
+    let hasChanges = true;
+    while (hasChanges) {
+      hasChanges = false;
+      for (const plugin of pluginData) {
+        if (pluginsWithMissingDeps.has(plugin.manifest.name)) {
+          continue; // Already excluded
+        }
+
+        const dependencies = plugin.manifest.dependencies || [];
+        for (const depName of dependencies) {
+          if (pluginsWithMissingDeps.has(depName)) {
+            errors.push(`Plugin "${plugin.manifest.name}" excluded because dependency "${depName}" is not loadable`);
+            pluginsWithMissingDeps.add(plugin.manifest.name);
+            hasChanges = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Filter out plugins with missing dependencies
+    const loadablePlugins = pluginData.filter((plugin) => !pluginsWithMissingDeps.has(plugin.manifest.name));
+    
+    excludedPlugins.push(...pluginsWithMissingDeps);
+
+    return {
+      loadablePlugins,
+      dependencyErrors: errors,
+      excludedPlugins,
+    };
+  }
+
+  /**
+   * Enhanced version with detailed error reporting and structured data
+   * @param pluginData Array of plugin data
+   * @returns Enhanced result with structured error information
+   */
+  filterLoadablePluginsWithDetails(pluginData: ResolvedPlugin[]): EnhancedDependencyFilterResult & { loadablePlugins: ResolvedPlugin[] } {
+    const basicResult = this.filterLoadablePlugins(pluginData);
+    const structuredErrors: Array<{
+      pluginName: string;
+      missingDependencies: string[];
+      errorType: 'missing' | 'circular';
+      affectedPlugins: string[];
+    }> = [];
+
+    const availablePlugins = new Set(pluginData.map((p) => p.manifest.name));
+    const dependencyMap = new Map<string, string[]>();
+
+    // Build dependency mapping and identify missing dependencies
+    for (const plugin of pluginData) {
+      const dependencies = plugin.manifest.dependencies || [];
+      dependencyMap.set(plugin.manifest.name, dependencies);
+
+      const missingDeps = dependencies.filter((dep) => !availablePlugins.has(dep));
+      if (missingDeps.length > 0) {
+        // Find all plugins affected by this missing dependency
+        const affectedPlugins = this.findAffectedPlugins(plugin.manifest.name, dependencyMap);
+        
+        structuredErrors.push({
+          pluginName: plugin.manifest.name,
+          missingDependencies: missingDeps,
+          errorType: 'missing',
+          affectedPlugins,
+        });
+      }
+    }
+
+    // Generate summary
+    const summary = {
+      totalPlugins: pluginData.length,
+      loadablePlugins: basicResult.loadablePlugins.length,
+      excludedPlugins: basicResult.excludedPlugins.length,
+      criticalErrors: structuredErrors.filter((error) => error.errorType === 'missing').length,
+    };
+
+    return {
+      ...basicResult,
+      structuredErrors,
+      summary,
+    };
+  }
+
+  /**
+   * Find all plugins that would be affected if a given plugin is excluded
+   * @param pluginName Name of the plugin to check
+   * @param dependencyMap Map of plugin dependencies
+   * @returns Array of plugin names that depend on this plugin
+   */
+  private findAffectedPlugins(pluginName: string, dependencyMap: Map<string, string[]>): string[] {
+    const affected: string[] = [];
+    const visited = new Set<string>();
+
+    const findDependents = (currentPlugin: string): void => {
+      if (visited.has(currentPlugin)) return;
+      visited.add(currentPlugin);
+
+      for (const [name, deps] of dependencyMap.entries()) {
+        if (deps.includes(currentPlugin) && !affected.includes(name)) {
+          affected.push(name);
+          findDependents(name); // Recursively find dependents
+        }
+      }
+    };
+
+    findDependents(pluginName);
+    return affected;
   }
 }

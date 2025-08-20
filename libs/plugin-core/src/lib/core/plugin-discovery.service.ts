@@ -189,20 +189,49 @@ export class PluginDiscoveryService {
       this.collectPluginManifests(resolvedPath, validPluginDirs, allPluginData);
     }
 
-    // Validate dependencies before attempting to resolve order
-    const dependencyErrors = this.dependencyResolver.validateDependencies(allPluginData);
+    // Filter out plugins with missing dependencies for graceful degradation
+    const { loadablePlugins, dependencyErrors, excludedPlugins, structuredErrors, summary } = 
+      this.dependencyResolver.filterLoadablePluginsWithDetails(allPluginData);
+    
     if (dependencyErrors.length > 0) {
-      this.logger.error('Plugin dependency validation failed:', dependencyErrors);
-      return []; // Return empty array if dependencies are invalid
+      this.logger.warn('Plugin dependency issues detected:', dependencyErrors);
+      
+      // Log structured error details for better debugging
+      if (structuredErrors.length > 0) {
+        this.logger.warn('Detailed dependency analysis:');
+        for (const error of structuredErrors) {
+          this.logger.warn(`  - Plugin "${error.pluginName}" missing dependencies: [${error.missingDependencies.join(', ')}]`);
+          if (error.affectedPlugins.length > 0) {
+            this.logger.warn(`    This affects dependent plugins: [${error.affectedPlugins.join(', ')}]`);
+          }
+        }
+      }
+      
+      // Log summary for quick overview
+      this.logger.warn(`Plugin loading summary: ${summary.loadablePlugins}/${summary.totalPlugins} plugins loadable, ${summary.excludedPlugins} excluded`);
+      
+      if (excludedPlugins.length > 0) {
+        this.logger.warn(`Excluding plugins: ${excludedPlugins.join(', ')}`);
+      }
     }
 
-    // Resolve loading order based on dependencies
+    // If no plugins can be loaded, return empty array
+    if (loadablePlugins.length === 0) {
+      this.logger.error('No plugins can be loaded due to dependency failures');
+      return [];
+    }
+
+    // Resolve loading order based on loadable plugins
     let sortedPlugins: ResolvedPlugin[] = [];
     try {
-      sortedPlugins = this.dependencyResolver.resolveLoadingOrder(allPluginData);
+      sortedPlugins = this.dependencyResolver.resolveLoadingOrder(loadablePlugins);
       this.logger.log(`Resolved plugin loading order: ${sortedPlugins.map((p) => p.manifest.name).join(' -> ')}`);
+      
+      if (excludedPlugins.length > 0) {
+        this.logger.log(`Successfully loading ${sortedPlugins.length} plugins despite ${excludedPlugins.length} excluded plugins`);
+      }
     } catch (error) {
-      this.logger.error('Failed to resolve plugin loading order:', error);
+      this.logger.error('Failed to resolve plugin loading order for loadable plugins:', error);
       return []; // Return empty array if resolution fails
     }
 
