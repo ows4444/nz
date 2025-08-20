@@ -32,9 +32,15 @@ This is an Nx monorepo. Use these commands for development:
 
 - `nx typecheck <project>` - Type check a specific project
 
+### Running the Application
+
+- `nx serve plugin-host` - Run the plugin host application in development mode
+- `nx serve plugin-host:production` - Run in production mode
+- `nx serve plugin-host:debug` - Run with debugger on port 9229
+
 ## Architecture Overview
 
-This is a **plugin-based microkernel architecture** for a NestJS application called "Nizaami". The system consists of:
+This is a **plugin-based micro-kernel architecture** for a NestJS application called "Nizaami". The system consists of:
 
 ### Core Components
 
@@ -46,14 +52,21 @@ This is a **plugin-based microkernel architecture** for a NestJS application cal
    - `PluginModuleFactory` - Creates NestJS modules from plugin manifests
    - Plugin validation, error handling, and security services
 
-3. **Plugin System** (`plugins/`) - Individual feature plugins (auth, product, user)
-4. **Plugin Tooling** (`tools/plugin/`) - Nx plugin providing executors and generators
+3. **Dynamic DTO Library** (`libs/dynamic-dto/`) - Runtime DTO generation and validation system with:
+
+   - Schema-driven DTO creation with complex field types
+   - Cross-field validation and business rules
+   - Caching and performance optimization
+   - Field processors for primitive, complex, and specialized types
+
+4. **Plugin System** (`plugins/`) - Individual feature plugins (auth, product, user)
+5. **Plugin Tooling** (`tools/plugin/`) - Nx plugin providing executors and generators
 
 ### Plugin Architecture
 
 - Each plugin has a `plugin.manifest.json` with metadata (name, version, dependencies, permissions, security)
 - Plugins follow NestJS patterns with controllers, services, and modules
-- Plugins are dynamically loaded at runtime with security sandboxing
+- Plugins are dynamically loaded at runtime with security sand-boxing
 - Plugin distribution packages are created as zip files in `releases/` directories
 
 ### Key Configuration
@@ -61,7 +74,7 @@ This is a **plugin-based microkernel architecture** for a NestJS application cal
 The Plugin Host configures the core in `app.module.ts` with:
 
 - Search paths for plugins (`./plugins`)
-- Security settings (sandboxing, permissions, trusted plugins)
+- Security settings (sand-boxing, permissions, trusted plugins)
 - Memory monitoring and performance metrics
 - Parallel loading capabilities
 
@@ -88,5 +101,5 @@ Plugins operate with:
 
 - Trust levels (unverified, trusted)
 - Permission system for services and modules
-- Sandboxing capabilities
+- Sand-boxing capabilities
 - Cross-plugin service restrictions
