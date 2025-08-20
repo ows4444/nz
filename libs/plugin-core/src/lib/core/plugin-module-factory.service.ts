@@ -3,10 +3,10 @@ import { Injectable, Logger, Module, Type } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Plugin } from '../types/plugin-core-config.interface';
-import { PluginManifest } from '../types/plugin-strict-interfaces';
-import { PluginModuleResult, ComponentLoadingContext, PluginModuleComponents } from '../types/plugin-component-types';
-import { IPluginModuleFactory } from '../types/plugin-service-interfaces';
+import { Plugin } from '../types/core/plugin-core-config.interface';
+import { PluginManifest } from '../types/core/plugin-strict-interfaces';
+import { PluginModuleResult, ComponentLoadingContext, PluginModuleComponents } from '../types/components/plugin-component-types';
+import { IPluginModuleFactory } from '../types/services/plugin-service-interfaces';
 import { PluginComponentLoaderService } from './plugin-component-loader.service';
 import { PluginUtilityService } from './plugin-utility.service';
 import { PLUGIN_CONSTANTS } from '../constants';
@@ -34,7 +34,7 @@ export class PluginModuleFactory implements IPluginModuleFactory {
       }
 
       const dynamicModule = this.createDynamicModule(manifest, components);
-      this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_LOADED}: ${manifest.name}`);
+      this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.PLUGIN_LOADED}: ${manifest.name}`);
 
       return {
         module: dynamicModule,

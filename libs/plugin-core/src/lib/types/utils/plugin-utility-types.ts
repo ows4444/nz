@@ -2,7 +2,7 @@
  * Utility types for the plugin system
  */
 
-import { PluginState, PluginManifest, PluginInstance } from './plugin-strict-interfaces';
+import { PluginState, PluginManifest, PluginInstance } from '../core/plugin-strict-interfaces';
 
 /**
  * Plugin event types

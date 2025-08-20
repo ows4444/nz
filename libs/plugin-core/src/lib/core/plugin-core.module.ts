@@ -1,5 +1,5 @@
 import { DynamicModule, Module, Provider, Type } from '@nestjs/common';
-import { PluginCoreAsyncConfig, PluginCoreOptionsFactory, PLUGIN_CORE_CONFIG } from '../types/plugin-core-config.interface';
+import { PluginCoreAsyncConfig, PluginCoreOptionsFactory, PLUGIN_CORE_CONFIG } from '../types/core/plugin-core-config.interface';
 import { DiscoveryModule } from '@nestjs/core';
 import { PluginMetadataService } from './plugin-metadata.service';
 import { PluginManagerService } from './plugin-manager.service';
@@ -8,6 +8,7 @@ import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginModuleFactory } from './plugin-module-factory.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
 import { PluginLifecycleService } from './plugin-lifecycle.service';
+import { PluginDependencyResolver } from '../utils/plugin-dependency-resolver';
 
 @Module({})
 export class PluginCoreModule {
@@ -22,11 +23,11 @@ export class PluginCoreModule {
   }
 
   private static createCoreProviders(): Provider[] {
-    return [PluginMetadataService, PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService];
+    return [PluginMetadataService, PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService, PluginDependencyResolver];
   }
 
   private static createCoreExports(): (string | symbol | Type<any>)[] {
-    return [PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService];
+    return [PluginManagerService, PluginDiscoveryService, PluginManifestValidator, PluginModuleFactory, PluginConfigValidator, PluginLifecycleService, PluginDependencyResolver];
   }
 
   private static createAsyncProviders(options: PluginCoreAsyncConfig): Provider[] {

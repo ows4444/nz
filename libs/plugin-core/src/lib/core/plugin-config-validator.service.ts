@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PluginCoreConfig, PluginCoreAsyncConfig } from '../types/plugin-core-config.interface';
-import { IPluginConfigValidator } from '../types/plugin-service-interfaces';
-import { PLUGIN_CONSTANTS } from '../constants';
+import { PluginCoreConfig, PluginCoreAsyncConfig } from '../types/core/plugin-core-config.interface';
+import { IPluginConfigValidator } from '../types/services/plugin-service-interfaces';
+import { PLUGIN_CONSTANTS, PluginConstantsHelper } from '../constants';
 
 @Injectable()
 export class PluginConfigValidator implements IPluginConfigValidator {
@@ -9,7 +9,7 @@ export class PluginConfigValidator implements IPluginConfigValidator {
 
   validateConfig(config: unknown): config is PluginCoreConfig {
     if (!config || typeof config !== 'object') {
-      this.logger.warn('Plugin config must be an object');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.PLUGIN_CONFIG_MUST_BE_OBJECT);
       return false;
     }
 
@@ -17,41 +17,41 @@ export class PluginConfigValidator implements IPluginConfigValidator {
 
     // Validate required searchPaths
     if (!configObj.searchPaths || !Array.isArray(configObj.searchPaths)) {
-      this.logger.warn('Plugin config must have searchPaths as an array');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.SEARCH_PATHS_MUST_BE_ARRAY);
       return false;
     }
 
     if (configObj.searchPaths.length === 0) {
-      this.logger.warn('Plugin config searchPaths cannot be empty');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.SEARCH_PATHS_CANNOT_BE_EMPTY);
       return false;
     }
 
     // Validate searchPaths contain only strings
     for (const path of configObj.searchPaths) {
       if (typeof path !== 'string' || path.trim().length === 0) {
-        this.logger.warn(`Invalid search path: ${path}`);
+        this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.INVALID_SEARCH_PATH}: ${path}`);
         return false;
       }
     }
 
     // Validate optional boolean fields
-    const booleanFields = ['autoStart', 'enableMemoryMonitoring', 'parallelLoading', 'enableHotReload', 'cacheEnabled', 'skipRuntimeLoading'];
+    const booleanFields = PluginConstantsHelper.getBooleanFields();
 
     for (const field of booleanFields) {
       if (configObj[field] !== undefined && typeof configObj[field] !== 'boolean') {
-        this.logger.warn(`Plugin config field ${field} must be a boolean`);
+        this.logger.warn(`Plugin config field ${field} ${PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.FIELD_MUST_BE_BOOLEAN}`);
         return false;
       }
     }
 
     // Validate optional numeric fields
-    const numericFields = ['defaultTimeout', 'defaultRetries', 'maxConcurrentLoads'];
+    const numericFields = PluginConstantsHelper.getNumericFields();
 
     for (const field of numericFields) {
       if (configObj[field] !== undefined) {
         const value = configObj[field];
         if (typeof value !== 'number' || value < 0 || !Number.isInteger(value)) {
-          this.logger.warn(`Plugin config field ${field} must be a non-negative integer`);
+          this.logger.warn(`Plugin config field ${field} ${PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.FIELD_MUST_BE_NON_NEGATIVE_INTEGER}`);
           return false;
         }
       }
@@ -62,7 +62,7 @@ export class PluginConfigValidator implements IPluginConfigValidator {
 
   validateAsyncConfig(config: PluginCoreAsyncConfig): boolean {
     if (!config || typeof config !== 'object') {
-      this.logger.warn('Plugin async config must be an object');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.ASYNC_CONFIG_MUST_BE_OBJECT);
       return false;
     }
 
@@ -71,25 +71,25 @@ export class PluginConfigValidator implements IPluginConfigValidator {
     const definedMethods = configMethods.filter((method) => method !== undefined);
 
     if (definedMethods.length !== 1) {
-      this.logger.warn('Plugin async config must have exactly one of: useFactory, useClass, or useExisting');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.EXACTLY_ONE_CONFIG_METHOD);
       return false;
     }
 
     // Validate useFactory
     if (config.useFactory && typeof config.useFactory !== 'function') {
-      this.logger.warn('Plugin async config useFactory must be a function');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.USE_FACTORY_MUST_BE_FUNCTION);
       return false;
     }
 
     // Validate inject array if present
     if (config.inject && !Array.isArray(config.inject)) {
-      this.logger.warn('Plugin async config inject must be an array');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.INJECT_MUST_BE_ARRAY);
       return false;
     }
 
     // Validate imports array if present
     if (config.imports && !Array.isArray(config.imports)) {
-      this.logger.warn('Plugin async config imports must be an array');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.IMPORTS_MUST_BE_ARRAY);
       return false;
     }
 

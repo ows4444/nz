@@ -40,6 +40,7 @@ This is a **plugin-based microkernel architecture** for a NestJS application cal
 
 1. **Plugin Host** (`apps/plugin-host/`) - Main NestJS application that hosts and orchestrates plugins
 2. **Plugin Core Library** (`libs/plugin-core/`) - Core plugin management infrastructure with:
+
    - `PluginManagerService` - Central orchestrator for plugin lifecycle
    - `PluginDiscoveryService` - Discovers and loads plugins from filesystem
    - `PluginModuleFactory` - Creates NestJS modules from plugin manifests

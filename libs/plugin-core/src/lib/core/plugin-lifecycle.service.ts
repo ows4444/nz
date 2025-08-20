@@ -7,9 +7,10 @@ import {
   PluginLifecycleCallback,
   PluginLifecycleListener,
   PluginLifecycleListenerOptions,
-  PluginLifecycleHandler
-} from '../types/plugin-lifecycle-types';
+  PluginLifecycleHandler,
+} from '../types/lifecycle/plugin-lifecycle-types';
 import { PluginErrorHandler, PluginErrorCode } from './plugin-error-handler.service';
+import { PLUGIN_CONSTANTS } from '../constants';
 
 @Injectable()
 export class PluginLifecycleService {
@@ -26,19 +27,15 @@ export class PluginLifecycleService {
   /**
    * Register a lifecycle event listener
    */
-  on(
-    eventType: PluginLifecycleEventType,
-    callback: PluginLifecycleCallback,
-    options?: PluginLifecycleListenerOptions
-  ): string {
+  on(eventType: PluginLifecycleEventType, callback: PluginLifecycleCallback, options?: PluginLifecycleListenerOptions): string {
     const listenerId = `listener_${++this.listenerIdCounter}`;
-    
+
     const listener: PluginLifecycleListener = {
       id: listenerId,
       eventType,
       callback,
       options,
-      registeredAt: new Date()
+      registeredAt: new Date(),
     };
 
     this.listeners.set(listenerId, listener);
@@ -57,16 +54,8 @@ export class PluginLifecycleService {
           this.off(listenerId);
         }
       } catch (error) {
-        this.logger.error(`Error in lifecycle listener ${listenerId}:`, error);
-        PluginErrorHandler.handleError(
-          PluginErrorHandler.createError(
-            PluginErrorCode.LOADING_FAILED,
-            `Lifecycle listener error: ${error}`,
-            event.data.pluginName,
-            'lifecycle',
-            error
-          )
-        );
+        this.logger.error(`${PLUGIN_CONSTANTS.LOG_MESSAGES.LIFECYCLE.ERROR_IN_LISTENER} ${listenerId}:`, error);
+        PluginErrorHandler.handleError(PluginErrorHandler.createError(PluginErrorCode.LOADING_FAILED, `Lifecycle listener error: ${error}`, event.data.pluginName, 'lifecycle', error));
       }
     };
 
@@ -91,7 +80,7 @@ export class PluginLifecycleService {
 
     this.eventEmitter.removeAllListeners(listener.eventType);
     this.listeners.delete(listenerId);
-    
+
     this.logger.debug(`Removed lifecycle listener ${listenerId}`);
     return true;
   }
@@ -104,8 +93,8 @@ export class PluginLifecycleService {
       type: eventType,
       data: {
         ...data,
-        timestamp: data.timestamp || new Date()
-      }
+        timestamp: data.timestamp || new Date(),
+      },
     };
 
     this.logger.debug(`Emitting lifecycle event ${eventType} for plugin ${data.pluginName}`);
@@ -127,11 +116,11 @@ export class PluginLifecycleService {
    */
   getListeners(eventType?: PluginLifecycleEventType): PluginLifecycleListener[] {
     const allListeners = Array.from(this.listeners.values());
-    
+
     if (eventType) {
-      return allListeners.filter(listener => listener.eventType === eventType);
+      return allListeners.filter((listener) => listener.eventType === eventType);
     }
-    
+
     return allListeners;
   }
 
@@ -148,30 +137,22 @@ export class PluginLifecycleService {
   clearAllListeners(): void {
     this.eventEmitter.removeAllListeners();
     this.listeners.clear();
-    this.logger.debug('Cleared all lifecycle listeners');
+    this.logger.debug(PLUGIN_CONSTANTS.LOG_MESSAGES.LIFECYCLE.CLEARED_ALL_LISTENERS);
   }
 
   /**
    * Check if an object implements PluginLifecycleHandler
    */
   private implementsLifecycleHandler(obj: any): obj is PluginLifecycleHandler {
-    return obj && (
-      typeof obj.onLoad === 'function' ||
-      typeof obj.onUnload === 'function' ||
-      typeof obj.onEnable === 'function' ||
-      typeof obj.onDisable === 'function' ||
-      typeof obj.onError === 'function'
+    return (
+      obj && (typeof obj.onLoad === 'function' || typeof obj.onUnload === 'function' || typeof obj.onEnable === 'function' || typeof obj.onDisable === 'function' || typeof obj.onError === 'function')
     );
   }
 
   /**
    * Call appropriate lifecycle handler method on plugin instance
    */
-  private async callPluginLifecycleHandler(
-    instance: PluginLifecycleHandler,
-    eventType: PluginLifecycleEventType,
-    event: PluginLifecycleEvent
-  ): Promise<void> {
+  private async callPluginLifecycleHandler(instance: PluginLifecycleHandler, eventType: PluginLifecycleEventType, event: PluginLifecycleEvent): Promise<void> {
     try {
       switch (eventType) {
         case 'load':
@@ -202,15 +183,7 @@ export class PluginLifecycleService {
       }
     } catch (error) {
       this.logger.error(`Error calling plugin lifecycle handler for ${eventType}:`, error);
-      PluginErrorHandler.handleError(
-        PluginErrorHandler.createError(
-          PluginErrorCode.LOADING_FAILED,
-          `Plugin lifecycle handler error: ${error}`,
-          event.data.pluginName,
-          'lifecycle',
-          error
-        )
-      );
+      PluginErrorHandler.handleError(PluginErrorHandler.createError(PluginErrorCode.LOADING_FAILED, `Plugin lifecycle handler error: ${error}`, event.data.pluginName, 'lifecycle', error));
     }
   }
 
@@ -222,7 +195,7 @@ export class PluginLifecycleService {
       totalListeners: this.listeners.size,
       listenersByEvent: {},
       oldestListener: null,
-      newestListener: null
+      newestListener: null,
     };
 
     // Count listeners by event type
@@ -234,19 +207,18 @@ export class PluginLifecycleService {
     }
 
     // Find oldest and newest listeners
-    const sortedListeners = Array.from(this.listeners.values())
-      .sort((a, b) => a.registeredAt.getTime() - b.registeredAt.getTime());
-    
+    const sortedListeners = Array.from(this.listeners.values()).sort((a, b) => a.registeredAt.getTime() - b.registeredAt.getTime());
+
     if (sortedListeners.length > 0) {
       stats.oldestListener = {
         id: sortedListeners[0].id,
         eventType: sortedListeners[0].eventType,
-        registeredAt: sortedListeners[0].registeredAt
+        registeredAt: sortedListeners[0].registeredAt,
       };
       stats.newestListener = {
         id: sortedListeners[sortedListeners.length - 1].id,
         eventType: sortedListeners[sortedListeners.length - 1].eventType,
-        registeredAt: sortedListeners[sortedListeners.length - 1].registeredAt
+        registeredAt: sortedListeners[sortedListeners.length - 1].registeredAt,
       };
     }
 

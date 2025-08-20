@@ -20,21 +20,13 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
   private isInitialized = false;
   private readonly startTime = Date.now();
 
-  constructor(
-    private readonly pluginMetadataService: PluginMetadataService,
-    private readonly pluginLifecycleService: PluginLifecycleService
-  ) {}
+  constructor(private readonly pluginMetadataService: PluginMetadataService, private readonly pluginLifecycleService: PluginLifecycleService) {}
 
   /**
    * Discover and load plugin modules from configuration
    */
   static discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[] {
-    return PluginErrorHandler.wrapDiscoveryOperation(
-      () => PluginDiscoveryService.discoverPluginModules(options),
-      PluginErrorCode.LOADING_FAILED,
-      PLUGIN_CONSTANTS.ERRORS.LOADING_FAILED,
-      'system'
-    );
+    return PluginErrorHandler.wrapDiscoveryOperation(() => PluginDiscoveryService.discoverPluginModules(options), PluginErrorCode.LOADING_FAILED, PLUGIN_CONSTANTS.ERRORS.LOADING_FAILED, 'system');
   }
 
   /**
@@ -91,7 +83,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
     };
 
     this.loadedPlugins.set(pluginName, entry);
-    this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_DISCOVERED}: ${pluginName}`);
+    this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.PLUGIN_DISCOVERED}: ${pluginName}`);
 
     // Emit load lifecycle event
     try {
@@ -100,7 +92,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
         manifest,
         instance: pluginInstance,
         timestamp: new Date(),
-        context: { module: module?.name }
+        context: { module: module?.name },
       });
     } catch (error) {
       this.logger.error(`Error emitting load event for plugin ${pluginName}:`, error);
@@ -179,7 +171,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
           pluginName,
           manifest: plugin.manifest,
           instance: plugin.instance,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
       } catch (error) {
         this.logger.error(`Error emitting disable event for plugin ${pluginName}:`, error);
@@ -206,7 +198,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
           pluginName,
           manifest: plugin.manifest,
           instance: plugin.instance,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
       } catch (error) {
         this.logger.error(`Error emitting enable event for plugin ${pluginName}:`, error);
@@ -229,7 +221,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
           pluginName,
           manifest: plugin.manifest,
           instance: plugin.instance,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
       } catch (error) {
         this.logger.error(`Error emitting unload event for plugin ${pluginName}:`, error);
@@ -257,7 +249,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
         manifest: plugin?.manifest,
         instance: plugin?.instance,
         timestamp: new Date(),
-        error
+        error,
       });
     } catch (lifecycleError) {
       this.logger.error(`Error emitting error event for plugin ${pluginName}:`, lifecycleError);
@@ -289,16 +281,16 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
    * Module initialization lifecycle hook - integrates PluginCore functionality
    */
   async onModuleInit(): Promise<void> {
-    this.logger.log(PLUGIN_CONSTANTS.MESSAGES.CORE_INITIALIZED);
+    this.logger.log(PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.CORE_INITIALIZED);
 
     const pluginWrappers = this.pluginMetadataService.findAllPluginWrappers();
 
     for (const { wrapper, metadata, type } of pluginWrappers) {
-      this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_FOUND} ${type}: ${wrapper.metatype?.name } ${JSON.stringify(metadata)}`);
+      this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.PLUGIN_FOUND} ${type}: ${wrapper.metatype?.name} ${JSON.stringify(metadata)}`);
 
       if (wrapper.metatype && metadata.enabled !== false) {
         this.pluginMetadataService.updatePluginMetadata(wrapper, metadata);
-        this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_ENABLED} ${type}: ${wrapper.metatype.name}`);
+        this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.PLUGIN_ENABLED} ${type}: ${wrapper.metatype.name}`);
       }
     }
   }
@@ -307,7 +299,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
    * Module destruction lifecycle hook
    */
   async onModuleDestroy(): Promise<void> {
-    this.logger.log(PLUGIN_CONSTANTS.MESSAGES.CORE_DESTROYED);
+    this.logger.log(PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.CORE_DESTROYED);
   }
 
   /**
@@ -323,7 +315,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
       // Mark as initialized
       this.isInitialized = true;
 
-      this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.MANAGER_INITIALIZED} with ${this.loadedPlugins.size} plugins`);
+      this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.MANAGER_INITIALIZED} with ${this.loadedPlugins.size} plugins`);
     } catch (error) {
       this.logger.error('Failed to initialize Plugin Manager:', error);
       this.isInitialized = false;
@@ -348,7 +340,7 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
       PluginErrorHandler.clearErrors();
 
       this.isInitialized = false;
-      this.logger.log(PLUGIN_CONSTANTS.MESSAGES.MANAGER_SHUTDOWN);
+      this.logger.log(PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.MANAGER_SHUTDOWN);
     } catch (error) {
       this.logger.error('Error during Plugin Manager shutdown:', error);
     }

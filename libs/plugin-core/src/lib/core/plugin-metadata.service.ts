@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InstanceWrapper } from '@nestjs/core/injector/instance-wrapper';
 import { DiscoveryService } from '@nestjs/core';
-import { Plugin, PLUGIN_META_KEY } from '../types/plugin-core-config.interface';
+import { Plugin, PLUGIN_META_KEY } from '../types/core/plugin-core-config.interface';
 import 'reflect-metadata';
 
 export interface PluginMetadataInfo {

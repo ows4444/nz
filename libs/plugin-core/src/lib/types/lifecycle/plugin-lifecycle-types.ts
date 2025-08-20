@@ -1,4 +1,4 @@
-import { PluginManifest } from './plugin-strict-interfaces';
+import { PluginManifest } from '../core/plugin-strict-interfaces';
 
 /**
  * Plugin lifecycle event types

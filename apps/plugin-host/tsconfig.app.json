@@ -21,6 +21,9 @@
   "exclude": ["out-tsc", "dist", "jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
   "references": [
     {
+      "path": "../../libs/dynamic-dto/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/plugin-core/tsconfig.lib.json"
     }
   ]

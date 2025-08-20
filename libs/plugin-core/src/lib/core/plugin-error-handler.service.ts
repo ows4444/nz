@@ -137,7 +137,7 @@ export class PluginErrorHandler {
     component?: string
   ): any {
     const result = this.wrapWithErrorHandling(operation, errorCode, errorMessage, pluginName, component);
-    
+
     if (result && (result as any).module) {
       return {
         success: true,

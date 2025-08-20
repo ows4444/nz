@@ -1,7 +1,7 @@
 import { Type } from '@nestjs/common';
-import { PluginCoreAsyncConfig, PluginCoreConfig } from './plugin-core-config.interface';
-import { PluginManifest } from './plugin-strict-interfaces';
-import { PluginModuleResult } from './plugin-component-types';
+import { PluginCoreAsyncConfig, PluginCoreConfig } from '../core/plugin-core-config.interface';
+import { PluginManifest } from '../core/plugin-strict-interfaces';
+import { PluginModuleResult } from '../components/plugin-component-types';
 
 /**
  * Interface for plugin discovery operations

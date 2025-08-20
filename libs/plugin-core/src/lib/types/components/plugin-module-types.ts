@@ -3,7 +3,7 @@
  */
 
 import { Type } from '@nestjs/common';
-import { PluginManifest } from './plugin-strict-interfaces';
+import { PluginManifest } from '../core/plugin-strict-interfaces';
 
 /**
  * Represents a discovered plugin module ready for loading

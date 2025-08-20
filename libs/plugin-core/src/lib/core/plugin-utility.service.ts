@@ -88,7 +88,7 @@ export class PluginUtilityService {
     try {
       return JSON.parse(JSON.stringify(config));
     } catch (error) {
-      this.logger.warn('Failed to clone plugin config, returning original');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.UTILITY.FAILED_TO_CLONE_CONFIG);
       return config;
     }
   }

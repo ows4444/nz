@@ -5,6 +5,7 @@ import { PluginCoreAsyncConfig, PluginCoreConfig } from '../types';
 import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginModuleFactory } from './plugin-module-factory.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
+import { PluginDependencyResolver, ResolvedPlugin } from '../utils/plugin-dependency-resolver';
 import { PLUGIN_CONSTANTS } from '../constants';
 
 @Injectable()
@@ -15,13 +16,19 @@ export class PluginDiscoveryService {
   private static manifestValidatorInstance: PluginManifestValidator | null = null;
   private static moduleFactoryInstance: PluginModuleFactory | null = null;
   private static configValidatorInstance: PluginConfigValidator | null = null;
+  private static dependencyResolverInstance: PluginDependencyResolver | null = null;
   private static discoveryServiceInstance: PluginDiscoveryService | null = null;
 
-  constructor(private readonly manifestValidator: PluginManifestValidator, private readonly moduleFactory: PluginModuleFactory, private readonly configValidator: PluginConfigValidator) {}
+  constructor(
+    private readonly manifestValidator: PluginManifestValidator,
+    private readonly moduleFactory: PluginModuleFactory,
+    private readonly configValidator: PluginConfigValidator,
+    private readonly dependencyResolver: PluginDependencyResolver
+  ) {}
 
   discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[] {
     if (!this.configValidator.validateAsyncConfig(options)) {
-      this.logger.warn('Invalid async configuration provided');
+      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.INVALID_ASYNC_CONFIG);
       return [];
     }
 
@@ -29,18 +36,18 @@ export class PluginDiscoveryService {
       const pluginOptions = this.getPluginOptionsSync(options);
 
       if (!pluginOptions) {
-        this.logger.warn('Cannot pre-discover plugin modules for async factory functions');
+        this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.CANNOT_PRE_DISCOVER_ASYNC);
         return [];
       }
 
       if (pluginOptions.skipRuntimeLoading) {
-        this.logger.log('Skipping runtime plugin loading as configured');
+        this.logger.log(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.SKIP_RUNTIME_LOADING);
         return [];
       }
 
       return this.loadPluginModulesFromSearchPaths(pluginOptions);
     } catch (error) {
-      this.logger.error('Could not pre-discover plugin modules:', error);
+      this.logger.error(PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.COULD_NOT_PRE_DISCOVER, error);
       return [];
     }
   }
@@ -76,6 +83,16 @@ export class PluginDiscoveryService {
   }
 
   /**
+   * Get or create singleton instance of PluginDependencyResolver
+   */
+  private static getDependencyResolverInstance(): PluginDependencyResolver {
+    if (!this.dependencyResolverInstance) {
+      this.dependencyResolverInstance = new PluginDependencyResolver();
+    }
+    return this.dependencyResolverInstance;
+  }
+
+  /**
    * Get or create singleton instance of PluginDiscoveryService
    */
   private static getDiscoveryServiceInstance(): PluginDiscoveryService {
@@ -83,7 +100,8 @@ export class PluginDiscoveryService {
       this.discoveryServiceInstance = new PluginDiscoveryService(
         this.getManifestValidatorInstance(),
         this.getModuleFactoryInstance(),
-        this.getConfigValidatorInstance()
+        this.getConfigValidatorInstance(),
+        this.getDependencyResolverInstance()
       );
     }
     return this.discoveryServiceInstance;
@@ -102,6 +120,7 @@ export class PluginDiscoveryService {
     this.manifestValidatorInstance = null;
     this.moduleFactoryInstance = null;
     this.configValidatorInstance = null;
+    this.dependencyResolverInstance = null;
     this.discoveryServiceInstance = null;
   }
 
@@ -112,6 +131,7 @@ export class PluginDiscoveryService {
     manifestValidatorCreated: boolean;
     moduleFactoryCreated: boolean;
     configValidatorCreated: boolean;
+    dependencyResolverCreated: boolean;
     discoveryServiceCreated: boolean;
     allInstancesCreated: boolean;
   } {
@@ -119,11 +139,14 @@ export class PluginDiscoveryService {
       manifestValidatorCreated: this.manifestValidatorInstance !== null,
       moduleFactoryCreated: this.moduleFactoryInstance !== null,
       configValidatorCreated: this.configValidatorInstance !== null,
+      dependencyResolverCreated: this.dependencyResolverInstance !== null,
       discoveryServiceCreated: this.discoveryServiceInstance !== null,
-      allInstancesCreated: this.manifestValidatorInstance !== null && 
-                          this.moduleFactoryInstance !== null && 
-                          this.configValidatorInstance !== null && 
-                          this.discoveryServiceInstance !== null
+      allInstancesCreated:
+        this.manifestValidatorInstance !== null &&
+        this.moduleFactoryInstance !== null &&
+        this.configValidatorInstance !== null &&
+        this.dependencyResolverInstance !== null &&
+        this.discoveryServiceInstance !== null,
     };
   }
 
@@ -150,6 +173,9 @@ export class PluginDiscoveryService {
   private loadPluginModulesFromSearchPaths(pluginOptions: PluginCoreConfig): Type<any>[] {
     const pluginModules: Type<any>[] = [];
 
+    // First, collect all plugin manifests with their paths
+    const allPluginData: ResolvedPlugin[] = [];
+
     for (const searchPath of Array.from(pluginOptions.searchPaths)) {
       const resolvedPath = path.resolve(searchPath);
 
@@ -160,15 +186,35 @@ export class PluginDiscoveryService {
       const pluginDirs = this.getPluginDirectories(resolvedPath);
       const validPluginDirs = this.manifestValidator.discoverValidPluginDirs(resolvedPath, pluginDirs);
 
-      this.loadPluginsFromDirectories(resolvedPath, validPluginDirs, pluginModules);
+      this.collectPluginManifests(resolvedPath, validPluginDirs, allPluginData);
     }
+
+    // Validate dependencies before attempting to resolve order
+    const dependencyErrors = this.dependencyResolver.validateDependencies(allPluginData);
+    if (dependencyErrors.length > 0) {
+      this.logger.error('Plugin dependency validation failed:', dependencyErrors);
+      return []; // Return empty array if dependencies are invalid
+    }
+
+    // Resolve loading order based on dependencies
+    let sortedPlugins: ResolvedPlugin[] = [];
+    try {
+      sortedPlugins = this.dependencyResolver.resolveLoadingOrder(allPluginData);
+      this.logger.log(`Resolved plugin loading order: ${sortedPlugins.map((p) => p.manifest.name).join(' -> ')}`);
+    } catch (error) {
+      this.logger.error('Failed to resolve plugin loading order:', error);
+      return []; // Return empty array if resolution fails
+    }
+
+    // Load plugins in dependency order
+    this.loadPluginsInOrder(sortedPlugins, pluginModules);
 
     return pluginModules;
   }
 
   private validateSearchPath(resolvedPath: string): boolean {
     if (!fs.existsSync(resolvedPath)) {
-      this.logger.warn(`Search path does not exist: ${resolvedPath}`);
+      this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.SEARCH_PATH_NOT_EXIST}: ${resolvedPath}`);
       return false;
     }
     return true;
@@ -181,21 +227,42 @@ export class PluginDiscoveryService {
       .map((dirent) => dirent.name);
   }
 
-  private loadPluginsFromDirectories(resolvedPath: string, pluginDirs: string[], pluginModules: Type<any>[]): void {
+  /**
+   * Collects plugin manifests and their metadata from valid plugin directories
+   */
+  private collectPluginManifests(resolvedPath: string, pluginDirs: string[], pluginData: ResolvedPlugin[]): void {
     for (const pluginDir of pluginDirs) {
       try {
         const manifestPath = path.join(resolvedPath, pluginDir, PLUGIN_CONSTANTS.MANIFEST_FILE);
         const manifest = this.manifestValidator.loadAndValidateManifest(manifestPath, pluginDir);
 
         if (manifest) {
-          const pluginModule = this.moduleFactory.createPluginModule(manifest, resolvedPath, pluginDir);
-          if (pluginModule) {
-            pluginModules.push(pluginModule.module);
-            this.logger.log(`${PLUGIN_CONSTANTS.MESSAGES.PLUGIN_LOADED}: ${manifest.name}`);
-          }
+          pluginData.push({
+            manifest,
+            resolvedPath,
+            pluginDir,
+          });
         }
       } catch (error) {
-        this.logger.warn(`Failed to process plugin ${pluginDir}:`, error);
+        this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.FAILED_TO_PROCESS_PLUGIN} ${pluginDir}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Loads plugins in the correct dependency order
+   */
+  private loadPluginsInOrder(sortedPlugins: ResolvedPlugin[], pluginModules: Type<any>[]): void {
+    for (const pluginData of sortedPlugins) {
+      try {
+        const pluginModule = this.moduleFactory.createPluginModule(pluginData.manifest, pluginData.resolvedPath, pluginData.pluginDir);
+
+        if (pluginModule) {
+          pluginModules.push(pluginModule.module);
+          this.logger.log(`${PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.PLUGIN_LOADED}: ${pluginData.manifest.name}`);
+        }
+      } catch (error) {
+        this.logger.error(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.FAILED_TO_PROCESS_PLUGIN} ${pluginData.manifest.name}:`, error);
       }
     }
   }

@@ -28,7 +28,7 @@
           "watchDepsName": "watch-deps"
         }
       },
-      "exclude": ["libs/plugin-core/*"]
+      "exclude": ["libs/plugin-core/*", "libs/dynamic-dto/*"]
     },
     {
       "plugin": "@nx/webpack/plugin",
@@ -56,7 +56,7 @@
     },
     {
       "plugin": "@nx/js/typescript",
-      "include": ["libs/plugin-core/*"],
+      "include": ["libs/plugin-core/*", "libs/dynamic-dto/*"],
       "options": {
         "typecheck": {
           "targetName": "typecheck"

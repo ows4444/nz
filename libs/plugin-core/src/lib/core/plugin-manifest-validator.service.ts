@@ -1,13 +1,15 @@
 import { createRequire } from 'module';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import { PluginManifest } from '../types/plugin-strict-interfaces';
-import { IPluginManifestValidator } from '../types/plugin-service-interfaces';
+import { PluginManifest } from '../types/core/plugin-strict-interfaces';
+import { IPluginManifestValidator } from '../types/services/plugin-service-interfaces';
 import { PLUGIN_CONSTANTS } from '../constants';
+import { DtoOrchestratorService } from '@libs/dynamic-dto';
 
 @Injectable()
 export class PluginManifestValidator implements IPluginManifestValidator {
+  constructor(@Optional() private readonly _dtoOrchestratorService?: DtoOrchestratorService) {}
   private readonly logger = new Logger(PluginManifestValidator.name);
   private readonly require = createRequire(__filename);
 

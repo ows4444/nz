@@ -1,6 +1,6 @@
 import { Logger, Type } from '@nestjs/common';
-import { PluginModuleComponents, ComponentLoader, ComponentLoadingContext, PluginComponentType } from '../types/plugin-component-types';
-import { PLUGIN_CONSTANTS } from '../constants';
+import { PluginModuleComponents, ComponentLoader, ComponentLoadingContext, PluginComponentType } from '../types/components/plugin-component-types';
+import { PLUGIN_CONSTANTS, PluginConstantsHelper } from '../constants';
 
 export class PluginComponentLoaderService implements ComponentLoader {
   private static readonly logger = new Logger(PluginComponentLoaderService.name);
@@ -20,9 +20,9 @@ export class PluginComponentLoaderService implements ComponentLoader {
       exports: [],
     };
 
-    this.loadComponentsOfType('controllers', context, components);
-    this.loadComponentsOfType('providers', context, components);
-    this.loadComponentsOfType('exports', context, components);
+    this.loadComponentsOfType(PLUGIN_CONSTANTS.COMPONENT_TYPES.CONTROLLERS, context, components);
+    this.loadComponentsOfType(PLUGIN_CONSTANTS.COMPONENT_TYPES.PROVIDERS, context, components);
+    this.loadComponentsOfType(PLUGIN_CONSTANTS.COMPONENT_TYPES.EXPORTS, context, components);
 
     return components;
   }
@@ -43,7 +43,7 @@ export class PluginComponentLoaderService implements ComponentLoader {
 
   private static loadSingleComponent(componentName: string, context: ComponentLoadingContext, type: PluginComponentType): Type<any> | null {
     if (!componentName || typeof componentName !== 'string') {
-      this.logger.warn(`Invalid component name for ${type} in ${context.manifest.name}: ${componentName}`);
+      this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.COMPONENT_LOADING.INVALID_COMPONENT_NAME} ${type} in ${context.manifest.name}: ${componentName}`);
       return null;
     }
 
@@ -78,7 +78,7 @@ export class PluginComponentLoaderService implements ComponentLoader {
 
     // Check if it's a class/constructor function
     if (typeof component !== 'function') {
-      PluginComponentLoaderService.logger.warn(`Component ${componentName} is not a constructor function`);
+      PluginComponentLoaderService.logger.warn(PluginConstantsHelper.formatLogMessage(PLUGIN_CONSTANTS.LOG_MESSAGES.COMPONENT_LOADING.COMPONENT_NOT_CONSTRUCTOR, componentName));
       return false;
     }
 

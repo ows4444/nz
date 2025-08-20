@@ -6,3 +6,6 @@ export * from './lib/types';
 
 // Constants Domain - Shared constants and configuration values
 export * from './lib/constants';
+
+// Utils Domain - Utility services and helpers
+export * from './lib/utils';
