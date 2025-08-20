@@ -11,6 +11,21 @@ export interface IPluginVersion {
 }
 
 /**
+ * Plugin dependency with optional version constraint
+ */
+export interface PluginDependency {
+  name: string;
+  version?: string; // Semver range (e.g., ^1.2.3, ~1.2.3, >=1.2.3)
+  optional?: boolean;
+  reason?: string; // Description of why this dependency is needed
+}
+
+/**
+ * Union type for dependencies - supports both simple strings and objects with version constraints
+ */
+export type DependencyDeclaration = string | PluginDependency;
+
+/**
  * Base plugin metadata
  */
 export interface IPlugin {
@@ -21,7 +36,7 @@ export interface IPlugin {
   author: string;
   license: string;
   keywords?: string[];
-  dependencies?: string[];
+  dependencies?: DependencyDeclaration[];
   metadata?: Record<string, unknown>;
 }
 

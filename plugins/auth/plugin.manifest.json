@@ -21,5 +21,10 @@
     "exports": ["AuthService"],
     "crossPluginServices": [],
     "guards": []
+  },
+  "compatibility": {
+    "nodeVersion": "^18.0.0",
+    "minimumHostVersion": "0.0.1",
+    "platformSupport": ["darwin", "linux", "win32"]
   }
 }

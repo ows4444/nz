@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PluginManifest, PluginDependencyFilterResult, EnhancedDependencyFilterResult } from '../types';
+import { PluginManifest, PluginDependencyFilterResult, EnhancedDependencyFilterResult, DependencyDeclaration } from '../types';
 
 export interface DependencyGraph {
   [pluginName: string]: {
@@ -18,6 +18,27 @@ export interface ResolvedPlugin {
 @Injectable()
 export class PluginDependencyResolver {
   private readonly logger = new Logger(PluginDependencyResolver.name);
+
+  /**
+   * Extracts dependency name from a dependency declaration
+   * @param dependency Dependency declaration (string or object)
+   * @returns Dependency name
+   */
+  private getDependencyName(dependency: DependencyDeclaration): string {
+    if (typeof dependency === 'string') {
+      return dependency;
+    }
+    return dependency.name;
+  }
+
+  /**
+   * Extracts dependency names from an array of dependency declarations
+   * @param dependencies Array of dependency declarations
+   * @returns Array of dependency names
+   */
+  private getDependencyNames(dependencies: DependencyDeclaration[]): string[] {
+    return dependencies.map(dep => this.getDependencyName(dep));
+  }
 
   /**
    * Resolves plugin loading order using topological sort based on dependencies
@@ -51,9 +72,10 @@ export class PluginDependencyResolver {
 
     // Initialize graph nodes
     for (const plugin of pluginData) {
+      const dependencyNames = plugin.manifest.dependencies ? this.getDependencyNames(plugin.manifest.dependencies) : [];
       graph[plugin.manifest.name] = {
         manifest: plugin.manifest,
-        dependencies: plugin.manifest.dependencies || [],
+        dependencies: dependencyNames,
         dependents: [],
       };
     }
@@ -61,7 +83,8 @@ export class PluginDependencyResolver {
     // Build dependency relationships
     for (const plugin of pluginData) {
       const dependencies = plugin.manifest.dependencies || [];
-      for (const depName of dependencies) {
+      for (const dependency of dependencies) {
+        const depName = this.getDependencyName(dependency);
         if (graph[depName]) {
           graph[depName].dependents.push(plugin.manifest.name);
         } else {
@@ -195,7 +218,8 @@ export class PluginDependencyResolver {
 
     for (const plugin of pluginData) {
       const dependencies = plugin.manifest.dependencies || [];
-      for (const depName of dependencies) {
+      for (const dependency of dependencies) {
+        const depName = this.getDependencyName(dependency);
         if (!availablePlugins.has(depName)) {
           errors.push(`Plugin "${plugin.manifest.name}" depends on "${depName}" which is not available`);
         }
@@ -219,7 +243,8 @@ export class PluginDependencyResolver {
     // First pass: identify plugins with missing dependencies
     for (const plugin of pluginData) {
       const dependencies = plugin.manifest.dependencies || [];
-      for (const depName of dependencies) {
+      for (const dependency of dependencies) {
+        const depName = this.getDependencyName(dependency);
         if (!availablePlugins.has(depName)) {
           errors.push(`Plugin "${plugin.manifest.name}" depends on "${depName}" which is not available`);
           pluginsWithMissingDeps.add(plugin.manifest.name);
@@ -237,7 +262,8 @@ export class PluginDependencyResolver {
         }
 
         const dependencies = plugin.manifest.dependencies || [];
-        for (const depName of dependencies) {
+        for (const dependency of dependencies) {
+          const depName = this.getDependencyName(dependency);
           if (pluginsWithMissingDeps.has(depName)) {
             errors.push(`Plugin "${plugin.manifest.name}" excluded because dependency "${depName}" is not loadable`);
             pluginsWithMissingDeps.add(plugin.manifest.name);
@@ -280,9 +306,10 @@ export class PluginDependencyResolver {
     // Build dependency mapping and identify missing dependencies
     for (const plugin of pluginData) {
       const dependencies = plugin.manifest.dependencies || [];
-      dependencyMap.set(plugin.manifest.name, dependencies);
+      const dependencyNames = this.getDependencyNames(dependencies);
+      dependencyMap.set(plugin.manifest.name, dependencyNames);
 
-      const missingDeps = dependencies.filter((dep) => !availablePlugins.has(dep));
+      const missingDeps = dependencyNames.filter((dep) => !availablePlugins.has(dep));
       if (missingDeps.length > 0) {
         // Find all plugins affected by this missing dependency
         const affectedPlugins = this.findAffectedPlugins(plugin.manifest.name, dependencyMap);

@@ -12,6 +12,7 @@ import { PluginModuleFactory } from './plugin-module-factory.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
 import { PluginLifecycleService } from './plugin-lifecycle.service';
 import { PluginDependencyResolver } from '../utils/plugin-dependency-resolver';
+import { SemverValidator } from '../utils/semver-validator';
 
 @Module({})
 export class PluginCoreModule {
@@ -41,6 +42,7 @@ export class PluginCoreModule {
       PluginConfigValidator,
       PluginLifecycleService,
       PluginDependencyResolver,
+      SemverValidator,
     ];
   }
 
@@ -56,6 +58,7 @@ export class PluginCoreModule {
       PluginConfigValidator,
       PluginLifecycleService,
       PluginDependencyResolver,
+      SemverValidator,
     ];
   }
 

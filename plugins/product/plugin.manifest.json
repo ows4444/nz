@@ -5,7 +5,14 @@
   "author": "Plugin Developer",
   "license": "MIT",
   "keywords": ["nizaami", "plugin", "product"],
-  "dependencies": ["@plugins/auth", "@plugins/user"],
+  "dependencies": [
+    {
+      "name": "@plugins/auth",
+      "version": "^0.1.0",
+      "reason": "Required for authentication services"
+    },
+    "@plugins/user"
+  ],
   "loadOrder": 300,
   "critical": false,
   "security": {
