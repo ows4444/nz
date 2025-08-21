@@ -25,7 +25,8 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
     private readonly pluginMetadataService: PluginMetadataService,
     private readonly pluginRegistryService: PluginRegistryService,
     private readonly pluginStatisticsService: PluginStatisticsService,
-    private readonly pluginLifecycleManagerService: PluginLifecycleManagerService
+    private readonly pluginLifecycleManagerService: PluginLifecycleManagerService,
+    private readonly pluginDiscoveryService: PluginDiscoveryService
   ) {}
 
   /**
@@ -168,6 +169,14 @@ export class PluginManagerService implements OnApplicationBootstrap, OnApplicati
    */
   async onModuleInit(): Promise<void> {
     this.logger.log(PLUGIN_CONSTANTS.LOG_MESSAGES.GENERAL.CORE_INITIALIZED);
+
+    try {
+      // Discover and load plugins and validate manifest files with `dtoOrchestratorService`
+      await this.pluginDiscoveryService.discoverAndValidatePlugins();
+    } catch (error) {
+      this.logger.error('Plugin discovery and validation failed:', error);
+      process.exit(1);
+    }
 
     const pluginWrappers = this.pluginMetadataService.findAllPluginWrappers();
 

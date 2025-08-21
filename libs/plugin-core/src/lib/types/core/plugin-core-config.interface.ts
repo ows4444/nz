@@ -4,7 +4,6 @@ import { ModuleMetadata, Type, SetMetadata, CustomDecorator } from '@nestjs/comm
  * Core configuration for the plugin system
  */
 export interface PluginCoreConfig {
-  searchPaths: string[];
   autoStart?: boolean;
   enableMemoryMonitoring?: boolean;
   defaultTimeout?: number;
@@ -59,7 +58,7 @@ export interface PluginLoggingConfig {
 export interface PluginCoreAsyncConfig extends Pick<ModuleMetadata, 'imports'> {
   useExisting?: Type<PluginCoreOptionsFactory>;
   useClass?: Type<PluginCoreOptionsFactory>;
-  useFactory?: (...args: unknown[]) => Promise<PluginCoreConfig> | PluginCoreConfig;
+  useFactory?: (...args: any[]) => Promise<PluginCoreConfig> | PluginCoreConfig;
   inject?: (string | symbol | Type<unknown>)[];
 }
 
@@ -68,36 +67,6 @@ export interface PluginCoreAsyncConfig extends Pick<ModuleMetadata, 'imports'> {
  */
 export interface PluginCoreOptionsFactory {
   createPluginCoreOptions(): Promise<PluginCoreConfig> | PluginCoreConfig;
-}
-
-/**
- * Configuration for plugin features
- */
-export interface PluginFeatureConfig {
-  name: string;
-  searchPaths?: string[];
-  autoLoad?: boolean;
-  loadOrder?: number;
-  dependencies?: string[];
-  config?: Partial<PluginCoreConfig>;
-}
-
-/**
- * Async configuration for plugin features
- */
-export interface PluginFeatureAsyncConfig extends Pick<ModuleMetadata, 'imports'> {
-  name: string;
-  useExisting?: Type<PluginFeatureOptionsFactory>;
-  useClass?: Type<PluginFeatureOptionsFactory>;
-  useFactory?: (...args: unknown[]) => Promise<PluginFeatureConfig> | PluginFeatureConfig;
-  inject?: (string | symbol | Type<unknown>)[];
-}
-
-/**
- * Factory interface for creating plugin feature options
- */
-export interface PluginFeatureOptionsFactory {
-  createPluginFeatureOptions(): Promise<PluginFeatureConfig> | PluginFeatureConfig;
 }
 
 export const PLUGIN_CORE_CONFIG = Symbol('PLUGIN_CORE_CONFIG');

@@ -15,25 +15,6 @@ export class PluginConfigValidator implements IPluginConfigValidator {
 
     const configObj = config as Record<string, unknown>;
 
-    // Validate required searchPaths
-    if (!configObj.searchPaths || !Array.isArray(configObj.searchPaths)) {
-      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.SEARCH_PATHS_MUST_BE_ARRAY);
-      return false;
-    }
-
-    if (configObj.searchPaths.length === 0) {
-      this.logger.warn(PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.SEARCH_PATHS_CANNOT_BE_EMPTY);
-      return false;
-    }
-
-    // Validate searchPaths contain only strings
-    for (const path of configObj.searchPaths) {
-      if (typeof path !== 'string' || path.trim().length === 0) {
-        this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.CONFIG_VALIDATION.INVALID_SEARCH_PATH}: ${path}`);
-        return false;
-      }
-    }
-
     // Validate optional boolean fields
     const booleanFields = PluginConstantsHelper.getBooleanFields();
 
@@ -98,7 +79,6 @@ export class PluginConfigValidator implements IPluginConfigValidator {
 
   sanitizeConfig(config: PluginCoreConfig): PluginCoreConfig {
     return {
-      searchPaths: [...config.searchPaths], // Copy array
       autoStart: config.autoStart ?? true,
       enableMemoryMonitoring: config.enableMemoryMonitoring ?? false,
       defaultTimeout: config.defaultTimeout ?? PLUGIN_CONSTANTS.DEFAULT_TIMEOUT,

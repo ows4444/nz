@@ -90,7 +90,6 @@ export interface PluginManifestValidationResult {
  * Plugin runtime context
  */
 export interface PluginRuntimeContext {
-  searchPaths: string[];
   loadedPlugins: Map<string, PluginInstance>;
   dependencyGraph: Map<string, PluginDependencyNode>;
   eventEmitter?: NodeJS.EventEmitter;

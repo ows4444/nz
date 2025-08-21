@@ -18,7 +18,7 @@ export class DtoOrchestratorService {
     private readonly batchProcessor: DtoBatchProcessor
   ) {}
 
-  async generateDto(schema: DynamicSchemaEntity): Promise<ClassConstructor<object>> {
+  private async generateDto(schema: DynamicSchemaEntity): Promise<ClassConstructor<object>> {
     const startTime = Date.now();
 
     try {

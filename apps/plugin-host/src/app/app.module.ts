@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PluginCoreModule, PLUGIN_CONSTANTS } from '@libs/plugin-core';
-import { DtoOrchestratorService, DynamicDtoModule } from '@libs/dynamic-dto';
+import { DynamicDtoModule } from '@libs/dynamic-dto';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+
     DynamicDtoModule.forRoot({
       isGlobal: true,
       imports: [],
@@ -17,10 +22,9 @@ import { DtoOrchestratorService, DynamicDtoModule } from '@libs/dynamic-dto';
       },
     }),
     PluginCoreModule.forRootAsync({
-      imports: [DynamicDtoModule],
-      useFactory: () => ({
-        searchPaths: ['./plugins'],
-        autoStart: true,
+      imports: [ConfigModule],
+      useFactory: (configService?: ConfigService) => ({
+        autoStart: configService?.get<boolean>('PLUGIN_AUTO_START', true),
         enableMemoryMonitoring: true,
         defaultTimeout: PLUGIN_CONSTANTS.DEFAULT_TIMEOUT,
         defaultRetries: PLUGIN_CONSTANTS.DEFAULT_RETRIES,
@@ -32,7 +36,7 @@ import { DtoOrchestratorService, DynamicDtoModule } from '@libs/dynamic-dto';
           trustedPlugins: ['core-plugin', 'admin-plugin'],
         },
       }),
-      inject: [DtoOrchestratorService],
+      inject: [ConfigService],
     }),
   ],
 })

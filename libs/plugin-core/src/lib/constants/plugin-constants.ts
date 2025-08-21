@@ -7,6 +7,8 @@ export const PLUGIN_CONSTANTS = {
   MANIFEST_FILE: 'plugin.manifest.json',
   DIST_DIRECTORY: 'dist',
 
+  PLUGIN_DIRECTORY: './plugins',
+
   // Default configuration values
   DEFAULT_TIMEOUT: 30000,
   DEFAULT_RETRIES: 3,
@@ -59,8 +61,6 @@ export const PLUGIN_CONSTANTS = {
       INVALID_ASYNC_CONFIG: 'Invalid async configuration provided',
       SKIP_RUNTIME_LOADING: 'Skipping runtime plugin loading as configured',
       PLUGIN_CONFIG_MUST_BE_OBJECT: 'Plugin config must be an object',
-      SEARCH_PATHS_MUST_BE_ARRAY: 'Plugin config must have searchPaths as an array',
-      SEARCH_PATHS_CANNOT_BE_EMPTY: 'Plugin config searchPaths cannot be empty',
       INVALID_SEARCH_PATH: 'Invalid search path',
       ASYNC_CONFIG_MUST_BE_OBJECT: 'Plugin async config must be an object',
       EXACTLY_ONE_CONFIG_METHOD: 'Plugin async config must have exactly one of: useFactory, useClass, or useExisting',
@@ -75,6 +75,7 @@ export const PLUGIN_CONSTANTS = {
       COMPONENT_NOT_CONSTRUCTOR: 'Component {0} is not a constructor function',
     },
     DISCOVERY: {
+      NO_PLUGIN_DIRS_FOUND: 'No plugin directories found in',
       SEARCH_PATH_NOT_EXIST: 'Search path does not exist',
       FAILED_TO_PROCESS_PLUGIN: 'Failed to process plugin',
       COULD_NOT_PRE_DISCOVER: 'Could not pre-discover plugin modules:',

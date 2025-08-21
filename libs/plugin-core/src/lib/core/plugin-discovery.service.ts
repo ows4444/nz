@@ -1,4 +1,4 @@
-import { Injectable, Logger, Type } from '@nestjs/common';
+import { Injectable, Logger, Optional, Type } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PluginCoreAsyncConfig, PluginCoreConfig } from '../types';
@@ -6,6 +6,7 @@ import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginModuleFactory } from './plugin-module-factory.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
 import { PluginDependencyResolver, ResolvedPlugin } from '../utils/plugin-dependency-resolver';
+import { DtoOrchestratorService, DynamicSchemaEntity, SchemaVersion } from '@libs/dynamic-dto';
 import { PLUGIN_CONSTANTS } from '../constants';
 
 @Injectable()
@@ -16,7 +17,8 @@ export class PluginDiscoveryService {
     private readonly manifestValidator: PluginManifestValidator,
     private readonly moduleFactory: PluginModuleFactory,
     private readonly configValidator: PluginConfigValidator,
-    private readonly dependencyResolver: PluginDependencyResolver
+    private readonly dependencyResolver: PluginDependencyResolver,
+    @Optional() private readonly dtoOrchestratorService?: DtoOrchestratorService
   ) {}
 
   discoverPluginModules(options: PluginCoreAsyncConfig): Type<any>[] {
@@ -38,11 +40,85 @@ export class PluginDiscoveryService {
         return [];
       }
 
-      return this.loadPluginModulesFromSearchPaths(pluginOptions);
+      return this.loadPluginModulesFromDisk();
     } catch (error) {
       this.logger.error(PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.COULD_NOT_PRE_DISCOVER, error);
       return [];
     }
+  }
+
+  /**
+   * Discover and validate plugins with DTO orchestrator service
+   */
+  async discoverAndValidatePlugins(): Promise<void> {
+    this.logger.log('Starting plugin discovery and validation...');
+
+    // Validate DTO orchestrator service is available
+    if (!this.dtoOrchestratorService) {
+      throw new Error('DtoOrchestratorService is not available for plugin validation');
+    }
+
+    const resolvedPath = path.resolve(PLUGIN_CONSTANTS.PLUGIN_DIRECTORY);
+
+    if (!this.validateSearchPath(resolvedPath)) {
+      this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.SEARCH_PATH_NOT_EXIST}: ${resolvedPath}`);
+      return;
+    }
+
+    const pluginDirs = this.getPluginDirectories(resolvedPath);
+
+    if (pluginDirs.length === 0) {
+      this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.NO_PLUGIN_DIRS_FOUND} ${resolvedPath}`);
+      return;
+    }
+    this.logger.log(`Found ${pluginDirs.length} plugin directories in ${resolvedPath}`);
+
+    // Validate plugin directories
+    const validPluginDirs = this.manifestValidator.discoverValidPluginDirs(resolvedPath, pluginDirs);
+
+    if (validPluginDirs.length === 0) {
+      this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.NO_PLUGIN_DIRS_FOUND} ${resolvedPath}`);
+      return;
+    }
+
+    this.logger.log(`Valid plugin directories found: ${validPluginDirs.join(', ')}`);
+
+    // Load and validate each plugin manifest
+    const pluginData: ResolvedPlugin[] = [];
+
+    this.collectPluginManifests(resolvedPath, validPluginDirs, pluginData);
+
+    console.log(`Collected ${pluginData.length} plugin manifests for validation`);
+    
+
+    if (pluginData.length === 0) {
+      throw new Error('No valid plugin manifests found');
+    }
+
+    // Create schema for plugin manifest validation using DTO orchestrator
+    const manifestSchema = new DynamicSchemaEntity(
+      'plugin-manifest-schema',
+      'PluginManifest',
+      {
+        name: { type: 'string' },
+        version: { type: 'string' },
+      },
+      new SchemaVersion(1, 0, 0),
+      ['name', 'version'] // Required fields
+    );
+
+    // Validate each manifest with DTO orchestrator service
+    for (const pluginResolvedData of pluginData) {
+      try {
+        await this.dtoOrchestratorService.validateData(pluginResolvedData.manifest, manifestSchema);
+        this.logger.log(`Manifest validation successful for plugin: ${pluginResolvedData.manifest.name}`);
+      } catch (error) {
+        this.logger.error(`DTO validation failed for plugin ${pluginResolvedData.manifest.name}:`, error);
+        throw new Error(`Plugin manifest DTO validation failed for ${pluginResolvedData.manifest.name}: ${(error as Error).message}`);
+      }
+    }
+
+    this.logger.log(`Plugin discovery and validation completed successfully. Loaded ${pluginData.length} plugins`);
   }
 
   /**
@@ -56,14 +132,10 @@ export class PluginDiscoveryService {
     const moduleFactory = new PluginModuleFactory();
     const configValidator = new PluginConfigValidator();
     const dependencyResolver = new PluginDependencyResolver();
-    
-    const discoveryService = new PluginDiscoveryService(
-      manifestValidator,
-      moduleFactory,
-      configValidator,
-      dependencyResolver
-    );
-    
+    // Assuming this is available globally or can be instantiated
+
+    const discoveryService = new PluginDiscoveryService(manifestValidator, moduleFactory, configValidator, dependencyResolver);
+
     return discoveryService.discoverPluginModules(options);
   }
 
@@ -87,32 +159,29 @@ export class PluginDiscoveryService {
     }
   }
 
-  private loadPluginModulesFromSearchPaths(pluginOptions: PluginCoreConfig): Type<any>[] {
+  loadPluginModulesFromDisk(): Type<any>[] {
     const pluginModules: Type<any>[] = [];
 
     // First, collect all plugin manifests with their paths
     const allPluginData: ResolvedPlugin[] = [];
 
-    for (const searchPath of Array.from(pluginOptions.searchPaths)) {
-      const resolvedPath = path.resolve(searchPath);
+    const resolvedPath = path.resolve(PLUGIN_CONSTANTS.PLUGIN_DIRECTORY);
 
-      if (!this.validateSearchPath(resolvedPath)) {
-        continue;
-      }
-
-      const pluginDirs = this.getPluginDirectories(resolvedPath);
-      const validPluginDirs = this.manifestValidator.discoverValidPluginDirs(resolvedPath, pluginDirs);
-
-      this.collectPluginManifests(resolvedPath, validPluginDirs, allPluginData);
+    if (!this.validateSearchPath(resolvedPath)) {
+      return [];
     }
 
+    const pluginDirs = this.getPluginDirectories(resolvedPath);
+    const validPluginDirs = this.manifestValidator.discoverValidPluginDirs(resolvedPath, pluginDirs);
+
+    this.collectPluginManifests(resolvedPath, validPluginDirs, allPluginData);
+
     // Filter out plugins with missing dependencies for graceful degradation
-    const { loadablePlugins, dependencyErrors, excludedPlugins, structuredErrors, summary } = 
-      this.dependencyResolver.filterLoadablePluginsWithDetails(allPluginData);
-    
+    const { loadablePlugins, dependencyErrors, excludedPlugins, structuredErrors, summary } = this.dependencyResolver.filterLoadablePluginsWithDetails(allPluginData);
+
     if (dependencyErrors.length > 0) {
       this.logger.warn('Plugin dependency issues detected:', dependencyErrors);
-      
+
       // Log structured error details for better debugging
       if (structuredErrors.length > 0) {
         this.logger.warn('Detailed dependency analysis:');
@@ -123,10 +192,10 @@ export class PluginDiscoveryService {
           }
         }
       }
-      
+
       // Log summary for quick overview
       this.logger.warn(`Plugin loading summary: ${summary.loadablePlugins}/${summary.totalPlugins} plugins loadable, ${summary.excludedPlugins} excluded`);
-      
+
       if (excludedPlugins.length > 0) {
         this.logger.warn(`Excluding plugins: ${excludedPlugins.join(', ')}`);
       }
@@ -143,7 +212,7 @@ export class PluginDiscoveryService {
     try {
       sortedPlugins = this.dependencyResolver.resolveLoadingOrder(loadablePlugins);
       this.logger.log(`Resolved plugin loading order: ${sortedPlugins.map((p) => p.manifest.name).join(' -> ')}`);
-      
+
       if (excludedPlugins.length > 0) {
         this.logger.log(`Successfully loading ${sortedPlugins.length} plugins despite ${excludedPlugins.length} excluded plugins`);
       }
@@ -158,7 +227,7 @@ export class PluginDiscoveryService {
     return pluginModules;
   }
 
-  private validateSearchPath(resolvedPath: string): boolean {
+  validateSearchPath(resolvedPath: string): boolean {
     if (!fs.existsSync(resolvedPath)) {
       this.logger.warn(`${PLUGIN_CONSTANTS.LOG_MESSAGES.DISCOVERY.SEARCH_PATH_NOT_EXIST}: ${resolvedPath}`);
       return false;
@@ -166,7 +235,7 @@ export class PluginDiscoveryService {
     return true;
   }
 
-  private getPluginDirectories(resolvedPath: string): string[] {
+  getPluginDirectories(resolvedPath: string): string[] {
     return fs
       .readdirSync(resolvedPath, { withFileTypes: true })
       .filter((dirent) => dirent.isDirectory())
