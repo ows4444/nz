@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { FieldValidator } from '../../../core/decorators/field-validator.decorator';
 import { BaseFieldValidator } from '../../../core/abstractions/base-field-validator.abstract';
 import { DateFieldSchema } from '../../../core/interfaces/schema/specialized-primitives/date-field.schema';
 import { BaseFieldSchema } from '../../../core/interfaces/schema';
@@ -6,6 +7,7 @@ import { ValidationContext, ValidationResult } from '../../../core/interfaces/va
 import { ValidationResultBuilder } from '../../../core/utils/validation-result.builder';
 import { FieldType } from '../../../core/types/field.types';
 
+@FieldValidator({ type: FieldType.date, priority: 1, category: 'specialized' })
 @Injectable()
 export class DateFieldValidator extends BaseFieldValidator<DateFieldSchema> {
   readonly supportedType = FieldType.date;

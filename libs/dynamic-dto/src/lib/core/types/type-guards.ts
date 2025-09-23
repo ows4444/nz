@@ -50,7 +50,7 @@ export function isPrimitiveValue(value: unknown): value is string | number | boo
  * Type guard for class constructor
  */
 export function isClassConstructor<T = object>(value: unknown): value is new (...args: unknown[]) => T {
-  return typeof value === 'function' && value.prototype && value.prototype.constructor === value;
+  return typeof value === 'function' && value.prototype && (value as { prototype: { constructor: unknown } }).prototype.constructor === value;
 }
 
 /**

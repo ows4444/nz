@@ -5,7 +5,6 @@ import type { DeepReadonly } from '../../core/types/common.types';
 export interface ValidationErrorContext {
   readonly fieldPath?: string;
   readonly schemaName?: string;
-  readonly schemaVersion?: string;
   readonly operation?: 'create' | 'read' | 'update' | 'delete';
   readonly userRoles?: readonly string[];
   readonly timestamp?: Date;
@@ -79,7 +78,7 @@ export abstract class BaseValidationError extends Error {
         fieldPath: issue.fieldPath ?? '',
       },
       [],
-      issue.metadata || {}
+      issue.metadata ?? {}
     );
   }
 
@@ -99,7 +98,7 @@ export abstract class BaseValidationError extends Error {
       code: this.code,
       message: this.message,
       severity: this.severity,
-      context: this.context || { fieldPath: '' },
+      context: this.context ?? { fieldPath: '' },
       suggestions: this.suggestions,
       metadata: this.metadata,
       timestamp: this.timestamp.toISOString(),

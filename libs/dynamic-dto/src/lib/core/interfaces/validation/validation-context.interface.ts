@@ -6,7 +6,6 @@ export interface ValidationContext {
   readonly parentType?: FieldTypeValue | 'schema';
   readonly depth: number;
   readonly schemaName?: string;
-  readonly schemaVersion?: string;
   readonly userRoles?: readonly string[];
   readonly operation?: 'create' | 'read' | 'update' | 'delete';
   readonly validationRules?: DeepReadonly<Record<string, unknown>>;

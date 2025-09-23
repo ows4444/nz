@@ -1,19 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { ValidationChain } from '../../core/patterns/validation-chain';
 import { ValidationStrategy } from '../../core/abstractions/validation-strategy.abstract';
-import { EnhancedSchemaValidationStrategy } from '../../application/strategies/validation/enhanced-schema-validation.strategy';
-import { BaseSchemaValidationStrategy } from '../../application/strategies/validation/base-schema-validation.strategy';
-import { FieldRegistryValidationStrategy } from '../../application/strategies/validation/field-registry-validation.strategy';
-import { BusinessRulesValidationStrategy } from '../../application/strategies/validation/business-rules-validation.strategy';
+import { StructuralValidationStrategy } from '../../application/strategies/validation/structural-validation.strategy';
+import { FieldValidationStrategy } from '../../application/strategies/validation/field-validation.strategy';
 import { CrossFieldValidationStrategy } from '../../application/strategies/validation/cross-field-validation.strategy';
 
+/**
+ * Simplified validation strategy factory with consolidated strategies
+ * Reduces complexity from 5 strategies to 3 focused strategies
+ */
 @Injectable()
 export class ValidationStrategyFactory {
   constructor(
-    private readonly enhancedSchemaStrategy: EnhancedSchemaValidationStrategy,
-    private readonly baseSchemaStrategy: BaseSchemaValidationStrategy,
-    private readonly fieldRegistryStrategy: FieldRegistryValidationStrategy,
-    private readonly businessRulesStrategy: BusinessRulesValidationStrategy,
+    private readonly structuralStrategy: StructuralValidationStrategy,
+    private readonly fieldStrategy: FieldValidationStrategy,
     private readonly crossFieldStrategy: CrossFieldValidationStrategy
   ) {}
 
@@ -21,12 +21,7 @@ export class ValidationStrategyFactory {
     const chain = new ValidationChain();
 
     // Add strategies in order of execution
-    chain
-      .addStrategy(this.enhancedSchemaStrategy)
-      .addStrategy(this.baseSchemaStrategy)
-      .addStrategy(this.fieldRegistryStrategy)
-      .addStrategy(this.businessRulesStrategy)
-      .addStrategy(this.crossFieldStrategy);
+    chain.addStrategy(this.structuralStrategy).addStrategy(this.fieldStrategy).addStrategy(this.crossFieldStrategy);
 
     return chain;
   }
@@ -47,15 +42,13 @@ export class ValidationStrategyFactory {
 
   private getStrategyMap(): Map<string, ValidationStrategy> {
     return new Map<string, ValidationStrategy>([
-      ['EnhancedSchemaValidation', this.enhancedSchemaStrategy],
-      ['BaseSchemaValidation', this.baseSchemaStrategy],
-      ['FieldRegistryValidation', this.fieldRegistryStrategy],
-      ['BusinessRulesValidation', this.businessRulesStrategy],
+      ['StructuralValidation', this.structuralStrategy],
+      ['FieldValidation', this.fieldStrategy],
       ['CrossFieldValidation', this.crossFieldStrategy],
     ]);
   }
 
   getAllStrategies(): ValidationStrategy[] {
-    return [this.enhancedSchemaStrategy, this.baseSchemaStrategy, this.fieldRegistryStrategy, this.businessRulesStrategy, this.crossFieldStrategy];
+    return [this.structuralStrategy, this.fieldStrategy, this.crossFieldStrategy];
   }
 }

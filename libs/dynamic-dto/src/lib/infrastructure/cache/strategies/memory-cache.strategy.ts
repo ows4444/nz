@@ -5,12 +5,21 @@ import { CacheMemoryInfo, CleanupResult } from '../../../core/interfaces/cache/c
 @Injectable()
 export class MemoryCacheStrategy implements ICacheStrategy {
   private readonly logger = new Logger(MemoryCacheStrategy.name);
-  private readonly cache = new Map<string, { value: unknown; expires?: number; size?: number; accessCount: number; lastAccess: number }>();
+  private readonly cache = new Map<
+    string,
+    {
+      value: unknown;
+      expires?: number;
+      size?: number;
+      accessCount: number;
+      lastAccess: number;
+    }
+  >();
   private hitCount = 0;
   private missCount = 0;
   private lastCleanup?: Date;
 
-  async get<T>(key: string): Promise<T | null> {
+  get<T>(key: string): T | null {
     const entry = this.cache.get(key);
 
     if (!entry) {
@@ -74,30 +83,32 @@ export class MemoryCacheStrategy implements ICacheStrategy {
     return exists;
   }
 
-  async getMemoryUsage(): Promise<CacheMemoryInfo> {
+  getMemoryUsage(): CacheMemoryInfo {
     // Clean up expired entries first
     this.cleanupExpired();
 
-    const totalSize = Array.from(this.cache.values()).reduce(
-      (sum, entry) => sum + (entry.size || 0),
-      0
-    );
+    const totalSize = Array.from(this.cache.values()).reduce((sum, entry) => sum + (entry.size ?? 0), 0);
 
     const totalAccesses = this.hitCount + this.missCount;
     const hitRate = totalAccesses > 0 ? this.hitCount / totalAccesses : 0;
 
-    return {
+    const result: CacheMemoryInfo = {
       estimatedBytes: totalSize + this.cache.size * 100, // Add overhead estimate
       entryCount: this.cache.size,
       utilizationRate: this.cache.size / 1000, // Assuming max 1000 entries as default
       hitRate,
-      lastCleanup: this.lastCleanup,
     };
+
+    if (this.lastCleanup) {
+      result.lastCleanup = this.lastCleanup;
+    }
+
+    return result;
   }
 
-  async cleanup(aggressive = false): Promise<CleanupResult> {
+  cleanup(aggressive = false): CleanupResult {
     const startTime = Date.now();
-    const initialMemory = await this.getMemoryUsage();
+    const initialMemory = this.getMemoryUsage();
 
     let entriesRemoved = 0;
 
@@ -107,7 +118,7 @@ export class MemoryCacheStrategy implements ICacheStrategy {
     if (aggressive) {
       // 2. Remove least accessed entries if aggressive cleanup
       const entries = Array.from(this.cache.entries());
-      
+
       // Sort by access count (ascending) and last access time (ascending)
       entries.sort(([, a], [, b]) => {
         if (a.accessCount === b.accessCount) {
@@ -119,12 +130,15 @@ export class MemoryCacheStrategy implements ICacheStrategy {
       // Remove bottom 25% of least accessed entries
       const toRemove = Math.floor(entries.length * 0.25);
       for (let i = 0; i < toRemove; i++) {
-        this.cache.delete(entries[i][0]);
-        entriesRemoved++;
+        const entry = entries[i];
+        if (entry) {
+          this.cache.delete(entry[0]);
+          entriesRemoved++;
+        }
       }
     }
 
-    const finalMemory = await this.getMemoryUsage();
+    const finalMemory = this.getMemoryUsage();
     const duration = Date.now() - startTime;
     this.lastCleanup = new Date();
 
@@ -135,10 +149,7 @@ export class MemoryCacheStrategy implements ICacheStrategy {
     };
 
     if (entriesRemoved > 0) {
-      this.logger.log(
-        `Cache cleanup completed: ${entriesRemoved} entries removed, ` +
-        `${this.formatBytes(result.memoryFreed)} freed in ${duration}ms`
-      );
+      this.logger.log(`Cache cleanup completed: ${entriesRemoved} entries removed, ` + `${this.formatBytes(result.memoryFreed)} freed in ${duration}ms`);
     }
 
     return result;
@@ -160,7 +171,7 @@ export class MemoryCacheStrategy implements ICacheStrategy {
 
   private estimateObjectSize(obj: unknown): number {
     if (obj === null || obj === undefined) return 8;
-    
+
     switch (typeof obj) {
       case 'boolean':
         return 4;
@@ -171,7 +182,7 @@ export class MemoryCacheStrategy implements ICacheStrategy {
       case 'object':
         if (obj instanceof Date) return 24;
         if (Array.isArray(obj)) {
-          return obj.reduce((sum, item) => sum + this.estimateObjectSize(item), 24);
+          return obj.reduce((sum: number, item: unknown) => sum + this.estimateObjectSize(item), 24);
         }
         // For complex objects (like class constructors), use a larger estimate
         return JSON.stringify(obj).length * 2 + 100; // Base object overhead

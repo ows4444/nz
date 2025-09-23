@@ -6,7 +6,9 @@ import { ValidationContext, ValidationResult } from '../../../core/interfaces/va
 import { ValidationResultBuilder } from '../../../core/utils/validation-result.builder';
 import { StringFormat } from '../../../core/enums/string.enums';
 import { Injectable } from '@nestjs/common';
+import { FieldValidator } from '../../../core/decorators/field-validator.decorator';
 
+@FieldValidator({ type: FieldType.string, priority: 1, category: 'primitive' })
 @Injectable()
 export class StringFieldValidator extends BaseFieldValidator<StringFieldSchema> {
   readonly supportedType = FieldType.string;

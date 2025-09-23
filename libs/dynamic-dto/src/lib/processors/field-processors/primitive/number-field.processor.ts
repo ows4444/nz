@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { FieldProcessor } from '../../../core/decorators/field-processor.decorator';
 import { IsDefined, IsInt, IsNegative, IsNumber, IsOptional, IsPositive, Max, Min, registerDecorator, ValidationArguments } from 'class-validator';
-import { BaseFieldProcessor } from '../../../core/abstractions/base-field-processor.abstract';
-import { type TransformationFunction } from '../../../core/abstractions/transformation-processor.abstract';
+import { BaseFieldProcessor, type TransformationFunction } from '../../../core/abstractions/base-field-processor.abstract';
 import type { FieldSchema } from '../../../core/interfaces/schema';
 import { FieldType } from '../../../core/types/field.types';
 import type { NumberFieldSchema } from '../../../core/interfaces/schema/primitive/number-field.schema';
 
+@FieldProcessor({ type: FieldType.number, priority: 1, category: 'primitive' })
 @Injectable()
 export class NumberFieldProcessor extends BaseFieldProcessor<NumberFieldSchema> {
   readonly supportedType = FieldType.number;
@@ -157,11 +158,11 @@ export class NumberFieldProcessor extends BaseFieldProcessor<NumberFieldSchema> 
         validator: {
           validate(value: unknown, args: ValidationArguments): boolean {
             if (typeof value !== 'number') return false;
-            const [min] = args.constraints;
+            const [min] = args.constraints as [number];
             return value > min;
           },
           defaultMessage(args: ValidationArguments): string {
-            const [min] = args.constraints;
+            const [min] = args.constraints as [number];
             return `${args.property} must be greater than ${min}`;
           },
         },
@@ -185,11 +186,11 @@ export class NumberFieldProcessor extends BaseFieldProcessor<NumberFieldSchema> 
         validator: {
           validate(value: unknown, args: ValidationArguments): boolean {
             if (typeof value !== 'number') return false;
-            const [max] = args.constraints;
+            const [max] = args.constraints as [number];
             return value < max;
           },
           defaultMessage(args: ValidationArguments): string {
-            const [max] = args.constraints;
+            const [max] = args.constraints as [number];
             return `${args.property} must be less than ${max}`;
           },
         },
@@ -213,11 +214,11 @@ export class NumberFieldProcessor extends BaseFieldProcessor<NumberFieldSchema> 
         validator: {
           validate(value: unknown, args: ValidationArguments): boolean {
             if (typeof value !== 'number') return false;
-            const [divisor] = args.constraints;
+            const [divisor] = args.constraints as [number];
             return Number.isInteger(value / divisor);
           },
           defaultMessage(args: ValidationArguments): string {
-            const [divisor] = args.constraints;
+            const [divisor] = args.constraints as [number];
             return `${args.property} must be a multiple of ${divisor}`;
           },
         },
@@ -241,12 +242,12 @@ export class NumberFieldProcessor extends BaseFieldProcessor<NumberFieldSchema> 
         validator: {
           validate(value: unknown, args: ValidationArguments): boolean {
             if (typeof value !== 'number') return false;
-            const [maxPlaces] = args.constraints;
-            const decimalPlaces = (value.toString().split('.')[1] || '').length;
+            const [maxPlaces] = args.constraints as [number];
+            const decimalPlaces = (value.toString().split('.')[1] ?? '').length;
             return decimalPlaces <= maxPlaces;
           },
           defaultMessage(args: ValidationArguments): string {
-            const [maxPlaces] = args.constraints;
+            const [maxPlaces] = args.constraints as [number];
             return `${args.property} must have at most ${maxPlaces} decimal places`;
           },
         },

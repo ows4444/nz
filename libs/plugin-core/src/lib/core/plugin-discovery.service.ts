@@ -6,7 +6,7 @@ import { PluginManifestValidator } from './plugin-manifest-validator.service';
 import { PluginModuleFactory } from './plugin-module-factory.service';
 import { PluginConfigValidator } from './plugin-config-validator.service';
 import { PluginDependencyResolver, ResolvedPlugin } from '../utils/plugin-dependency-resolver';
-import { DtoOrchestratorService, DynamicSchemaEntity, SchemaVersion } from '@libs/dynamic-dto';
+import { DtoOrchestratorService, DynamicSchemaEntity, SchemaVersion, FieldType } from '@libs/dynamic-dto';
 import { PLUGIN_CONSTANTS } from '../constants';
 
 @Injectable()
@@ -88,29 +88,118 @@ export class PluginDiscoveryService {
 
     this.collectPluginManifests(resolvedPath, validPluginDirs, pluginData);
 
-    console.log(`Collected ${pluginData.length} plugin manifests for validation`);
-    
-
     if (pluginData.length === 0) {
       throw new Error('No valid plugin manifests found');
     }
+
+    const SchemaTest = new DynamicSchemaEntity(
+      'test-schema',
+      'TestSchema',
+      {
+        security: {
+          type: FieldType.object,
+          properties: {
+            trustLevel: { type: FieldType.enum, values: ['unverified', 'verified', 'trusted'], default: 'unverified', expose: true },
+          },
+          nullable: true,
+          expose: true,
+        },
+
+        level: { type: FieldType.enum, values: ['log', 'debug', 'error'], default: 'debug', expose: true },
+      },
+      new SchemaVersion(1, 0, 0),
+      [], // Required fields
+      true // Expose schema for validation
+    );
+
+    const result = await this.dtoOrchestratorService.validateData(
+      {
+        name: 'testUser123',
+        age: 30,
+        email: 'test@email.com',
+        tags: ['example', 'plugin'],
+        security: {
+          trustLevel: 'verified',
+        },
+        level: 'debug',
+        metadata: {
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      SchemaTest
+    );
+
+    console.log(result);
 
     // Create schema for plugin manifest validation using DTO orchestrator
     const manifestSchema = new DynamicSchemaEntity(
       'plugin-manifest-schema',
       'PluginManifest',
       {
-        name: { type: 'string' },
-        version: { type: 'string' },
+        name: { type: FieldType.string, pattern: RegExp('^@plugins/[a-z]+$'), maxLength: 18, minLength: 12 },
+        version: { type: FieldType.string, format: 'semver' },
+        description: { type: FieldType.string, maxLength: 256, expose: true },
+        author: { type: FieldType.string, nullable: true, expose: true },
+        license: { type: FieldType.string, nullable: true, expose: true },
+        keywords: { type: FieldType.array, items: { type: FieldType.string }, expose: true },
+        loadOrder: { type: FieldType.number, negative: false, default: 0 },
+        critical: { type: FieldType.boolean, expose: true },
+        security: {
+          type: FieldType.object,
+          properties: {
+            trustLevel: { type: FieldType.enum, values: ['unverified', 'verified', 'trusted'], default: 'unverified', expose: true },
+          },
+          nullable: true,
+          expose: true,
+        },
+        permissions: {
+          type: FieldType.object,
+          properties: {
+            services: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+            modules: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+          },
+          nullable: true,
+        },
+        dependencies: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+        module: {
+          type: FieldType.object,
+          properties: {
+            controllers: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+            providers: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+            exports: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+            crossPluginServices: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+            guards: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+          },
+          nullable: true,
+          expose: true,
+        },
+        compatibility: {
+          type: FieldType.object,
+          properties: {
+            nodeVersion: { type: FieldType.string, nullable: true, expose: true },
+            minimumHostVersion: { type: FieldType.string, nullable: true, expose: true },
+            platformSupport: { type: FieldType.array, items: { type: FieldType.string }, nullable: true, expose: true },
+          },
+          nullable: true,
+          expose: true,
+        },
       },
       new SchemaVersion(1, 0, 0),
-      ['name', 'version'] // Required fields
+      ['name', 'version', 'loadOrder'], // Required fields
+      true
     );
 
+    // TODO: Temporarily disable DTO validation to isolate the issue
     // Validate each manifest with DTO orchestrator service
     for (const pluginResolvedData of pluginData) {
       try {
-        await this.dtoOrchestratorService.validateData(pluginResolvedData.manifest, manifestSchema);
+        const result = await this.dtoOrchestratorService.validateData(pluginResolvedData.manifest, manifestSchema);
+        if (!result.isValid) {
+          this.logger.error(`Manifest validation failed for plugin: ${pluginResolvedData.manifest.name}`, result.errors);
+          throw new Error(`Plugin manifest validation failed for ${pluginResolvedData.manifest.name}: ${result.errors.map((e) => e.message).join(', ')}`);
+        }
+
         this.logger.log(`Manifest validation successful for plugin: ${pluginResolvedData.manifest.name}`);
       } catch (error) {
         this.logger.error(`DTO validation failed for plugin ${pluginResolvedData.manifest.name}:`, error);

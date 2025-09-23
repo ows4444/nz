@@ -7,6 +7,9 @@ export * from './field-validation.error';
 // Schema validation error exports
 export * from './schema-validation.error';
 
+// Schema processing error exports
+export * from './schema-processing.error';
+
 // Validation error aggregator
 export * from './validation-error-aggregator';
 

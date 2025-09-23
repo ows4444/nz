@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { DynamicSchemaEntity } from '../../domain/entities/dynamic-schema.entity';
-import type { ClassConstructor } from '../../core/types/common.types';
+import type { classConstructor } from '../../core/types/common.types';
 import { DtoGenerationPipeline } from '../pipelines/dto-generation.pipeline';
 import { DtoCacheService } from './dto-cache.service';
 import { DtoValidationService } from './dto-validation.service';
 
 export interface BatchResult {
-  results: Map<string, ClassConstructor<object>>;
+  results: Map<string, classConstructor<object>>;
   metrics: BatchMetrics;
 }
 
@@ -22,20 +22,16 @@ export interface BatchMetrics {
 export class DtoBatchProcessor {
   private readonly logger = new Logger(DtoBatchProcessor.name);
 
-  constructor(
-    private readonly generationPipeline: DtoGenerationPipeline,
-    private readonly cacheService: DtoCacheService,
-    private readonly validationService: DtoValidationService
-  ) {}
+  constructor(private readonly generationPipeline: DtoGenerationPipeline, private readonly cacheService: DtoCacheService, private readonly validationService: DtoValidationService) {}
 
   async processBatch(schemas: DynamicSchemaEntity[]): Promise<BatchResult> {
     const startTime = Date.now();
-    const results = new Map<string, ClassConstructor<object>>();
+    const results = new Map<string, classConstructor<object>>();
     const uncachedSchemas: DynamicSchemaEntity[] = [];
 
     // First pass: check cache for all schemas in parallel
     const cachePromises = schemas.map(async (schema) => {
-      const cached = await this.cacheService.get<ClassConstructor<object>>(schema);
+      const cached = await this.cacheService.get<classConstructor<object>>(schema);
       return { schema, cached };
     });
 
@@ -51,7 +47,9 @@ export class DtoBatchProcessor {
     }
 
     if (uncachedSchemas.length === 0) {
-      this.logger.debug('All DTOs found in cache', { totalSchemas: schemas.length });
+      this.logger.debug('All DTOs found in cache', {
+        totalSchemas: schemas.length,
+      });
       return {
         results,
         metrics: {
@@ -78,7 +76,7 @@ export class DtoBatchProcessor {
     const adaptiveTtl = await this.cacheService.calculateAdaptiveTtl();
     const cachePromises2 = Array.from(generatedClasses.entries()).map(([cacheKey, generatedClass]) => {
       // Find the schema for this cache key to use the proper caching method
-      const schema = validSchemas.find(s => this.cacheService.generateCacheKey(s) === cacheKey);
+      const schema = validSchemas.find((s) => this.cacheService.generateCacheKey(s) === cacheKey);
       if (schema) {
         return this.cacheService.set(schema, generatedClass, adaptiveTtl);
       }
@@ -106,12 +104,15 @@ export class DtoBatchProcessor {
     return { results, metrics };
   }
 
-  async getCachedResults(schemas: DynamicSchemaEntity[]): Promise<{ cached: Map<string, ClassConstructor<object>>; uncached: DynamicSchemaEntity[] }> {
-    const cached = new Map<string, ClassConstructor<object>>();
+  async getCachedResults(schemas: DynamicSchemaEntity[]): Promise<{
+    cached: Map<string, classConstructor<object>>;
+    uncached: DynamicSchemaEntity[];
+  }> {
+    const cached = new Map<string, classConstructor<object>>();
     const uncached: DynamicSchemaEntity[] = [];
 
     const cachePromises = schemas.map(async (schema) => {
-      const cachedResult = await this.cacheService.get<ClassConstructor<object>>(schema);
+      const cachedResult = await this.cacheService.get<classConstructor<object>>(schema);
       return { schema, cachedResult };
     });
 

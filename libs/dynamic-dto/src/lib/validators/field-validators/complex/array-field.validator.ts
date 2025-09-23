@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { FieldValidator } from '../../../core/decorators/field-validator.decorator';
 import {
   ArrayFieldSchema,
   BaseFieldSchema,
@@ -15,6 +16,7 @@ import {
 } from '../../../core';
 import { FieldType, FieldTypeValue } from '../../../core/types/field.types';
 
+@FieldValidator({ type: FieldType.array, priority: 1, category: 'complex' })
 @Injectable()
 export class ArrayFieldValidator extends BaseFieldValidator<ArrayFieldSchema> {
   readonly supportedType = FieldType.array;
@@ -40,7 +42,7 @@ export class ArrayFieldValidator extends BaseFieldValidator<ArrayFieldSchema> {
     const builder = new ValidationResultBuilder(context.fieldPath);
 
     this.validateSizeConstraintLogic(schema, builder);
-    this.validateItemValidationRules(schema, builder, context);
+    this.validateItemValidationRules(schema, builder);
     this.validateCrossItemValidation(schema, builder);
     this.validateConflictingConstraints(schema, builder);
 
@@ -51,7 +53,7 @@ export class ArrayFieldValidator extends BaseFieldValidator<ArrayFieldSchema> {
     const builder = new ValidationResultBuilder(context.fieldPath);
 
     this.validateSecurityConstraints(schema, builder);
-    this.validateItemSecurityPropagation(schema, builder, context);
+    this.validateItemSecurityPropagation(schema, builder);
 
     return builder.build();
   }
@@ -175,15 +177,15 @@ export class ArrayFieldValidator extends BaseFieldValidator<ArrayFieldSchema> {
     }
   }
 
-  private validateItemValidationRules(schema: ArrayFieldSchema, builder: ValidationResultBuilder, context: ValidationContext): void {
+  private validateItemValidationRules(schema: ArrayFieldSchema, builder: ValidationResultBuilder): void {
     if (!schema.itemValidation?.length) return;
 
     schema.itemValidation.forEach((rule, index) => {
-      this.validateSingleValidationRule(rule, index, builder, context);
+      this.validateSingleValidationRule(rule, index, builder);
     });
   }
 
-  private validateSingleValidationRule(rule: ValidationRule, index: number, builder: ValidationResultBuilder, _context: ValidationContext): void {
+  private validateSingleValidationRule(rule: ValidationRule, index: number, builder: ValidationResultBuilder): void {
     if (!rule.type) {
       builder.addError('ARRAY_ITEM_VALIDATION_MISSING_TYPE', `Item validation rule at index ${index} is missing type`, index);
     }
@@ -240,7 +242,7 @@ export class ArrayFieldValidator extends BaseFieldValidator<ArrayFieldSchema> {
     }
   }
 
-  private validateItemSecurityPropagation(schema: ArrayFieldSchema, builder: ValidationResultBuilder, _context: ValidationContext): void {
+  private validateItemSecurityPropagation(schema: ArrayFieldSchema, builder: ValidationResultBuilder): void {
     if (Array.isArray(schema.items)) return;
 
     const itemSchema = schema.items;

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CacheStats, LRUCache } from '../cache/lru-cache';
 
@@ -11,11 +11,13 @@ export interface CacheMonitorConfig {
 }
 
 @Injectable()
-export class CacheMonitorService {
+export class CacheMonitorService implements OnModuleDestroy {
   private readonly logger = new Logger(CacheMonitorService.name);
+  // Use Map with proper cleanup to prevent memory leaks
   private readonly monitoredCaches = new Map<string, LRUCache<unknown, unknown>>();
   private readonly config: Required<CacheMonitorConfig>;
   private lastAlertTime = 0;
+  private isDestroyed = false;
 
   constructor(config: CacheMonitorConfig = {}) {
     this.config = {
@@ -28,9 +30,25 @@ export class CacheMonitorService {
   }
 
   /**
-   * Register a cache for monitoring
+   * Cleanup method to prevent memory leaks
+   */
+  onModuleDestroy(): void {
+    this.isDestroyed = true;
+
+    // Clear all cache references to prevent memory leaks
+    this.monitoredCaches.clear();
+
+    this.logger.log('Cache monitoring service destroyed - cleanup completed');
+  }
+
+  /**
+   * Register a cache for monitoring with proper lifecycle management
    */
   registerCache<K, V>(name: string, cache: LRUCache<K, V>): void {
+    if (this.isDestroyed) {
+      return;
+    }
+
     this.monitoredCaches.set(name, cache as LRUCache<unknown, unknown>);
     this.logger.log(`Registered cache '${name}' for monitoring`);
   }
@@ -47,17 +65,27 @@ export class CacheMonitorService {
    * Get current statistics for all monitored caches
    */
   getAllCacheStats(): Record<string, CacheStats & { memoryUsageBytes: number }> {
+    if (this.isDestroyed) {
+      return {};
+    }
+
     const stats: Record<string, CacheStats & { memoryUsageBytes: number }> = {};
 
-    for (const [name, cache] of this.monitoredCaches) {
-      const cacheStats = cache.getStats();
-      const memoryUsage = cache.getApproximateMemoryUsage();
+    this.monitoredCaches.forEach((cache, name) => {
+      try {
+        const cacheStats = cache.getStats();
+        const memoryUsage = cache.getApproximateMemoryUsage();
 
-      stats[name] = {
-        ...cacheStats,
-        memoryUsageBytes: memoryUsage,
-      };
-    }
+        stats[name] = {
+          ...cacheStats,
+          memoryUsageBytes: memoryUsage,
+        };
+      } catch (error) {
+        this.logger.warn(`Failed to get stats for cache '${name}'`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    });
 
     return stats;
   }
@@ -121,6 +149,10 @@ export class CacheMonitorService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   performHealthCheck(): void {
+    if (this.isDestroyed) {
+      return; // Skip execution if service is destroyed
+    }
+
     try {
       const healthReport = this.checkCacheHealth();
 
@@ -151,7 +183,9 @@ export class CacheMonitorService {
     const infoIssues = issues.filter((issue) => issue.severity === 'INFO');
 
     if (warningIssues.length > 0) {
-      this.logger.warn('Cache health issues detected', { issues: warningIssues });
+      this.logger.warn('Cache health issues detected', {
+        issues: warningIssues,
+      });
     }
 
     if (infoIssues.length > 0) {

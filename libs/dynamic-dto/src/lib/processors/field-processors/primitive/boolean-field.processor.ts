@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
+import { FieldProcessor } from '../../../core/decorators/field-processor.decorator';
 import { IsBoolean, IsDefined, IsOptional } from 'class-validator';
-import { BaseFieldProcessor } from '../../../core/abstractions/base-field-processor.abstract';
-import { type TransformationFunction } from '../../../core/abstractions/transformation-processor.abstract';
+import { BaseFieldProcessor, type TransformationFunction } from '../../../core/abstractions/base-field-processor.abstract';
 
 import type { FieldSchema } from '../../../core/interfaces/schema';
 import { FieldType } from '../../../core/types/field.types';
 import type { BooleanFieldSchema } from '../../../core/interfaces/schema/primitive/boolean-field.schema';
 
+@FieldProcessor({ type: FieldType.boolean, priority: 1, category: 'primitive' })
 @Injectable()
 export class BooleanFieldProcessor extends BaseFieldProcessor<BooleanFieldSchema> {
   readonly supportedType = FieldType.boolean;

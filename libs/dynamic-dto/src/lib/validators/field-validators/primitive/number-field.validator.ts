@@ -5,7 +5,9 @@ import { ValidationContext, ValidationResult } from '../../../core/interfaces/va
 import { ValidationResultBuilder } from '../../../core/utils/validation-result.builder';
 import { NumberFieldSchema } from '../../../core/interfaces/schema/primitive/number-field.schema';
 import { Injectable } from '@nestjs/common';
+import { FieldValidator } from '../../../core/decorators/field-validator.decorator';
 
+@FieldValidator({ type: FieldType.number, priority: 1, category: 'primitive' })
 @Injectable()
 export class NumberFieldValidator extends BaseFieldValidator<NumberFieldSchema> {
   readonly supportedType = FieldType.number;
@@ -21,27 +23,39 @@ export class NumberFieldValidator extends BaseFieldValidator<NumberFieldSchema> 
 
     // Validate range constraints
     if (schema.min !== undefined && schema.max !== undefined && schema.min > schema.max) {
-      builder.addError('NUMBER_INVALID_RANGE', `min (${schema.min}) cannot be greater than max (${schema.max})`, { min: schema.min, max: schema.max });
+      builder.addError('NUMBER_INVALID_RANGE', `min (${schema.min}) cannot be greater than max (${schema.max})`, { min: schema.min, max: schema.max }, undefined, { min: schema.min, max: schema.max });
     }
 
     if (schema.exclusiveMin !== undefined && schema.exclusiveMax !== undefined && schema.exclusiveMin >= schema.exclusiveMax) {
-      builder.addError('NUMBER_INVALID_EXCLUSIVE_RANGE', `exclusiveMin (${schema.exclusiveMin}) must be less than exclusiveMax (${schema.exclusiveMax})`, {
-        exclusiveMin: schema.exclusiveMin,
-        exclusiveMax: schema.exclusiveMax,
-      });
+      builder.addError(
+        'NUMBER_INVALID_EXCLUSIVE_RANGE',
+        `exclusiveMin (${schema.exclusiveMin}) must be less than exclusiveMax (${schema.exclusiveMax})`,
+        {
+          exclusiveMin: schema.exclusiveMin,
+          exclusiveMax: schema.exclusiveMax,
+        },
+        undefined,
+        {
+          exclusiveMin: schema.exclusiveMin,
+          exclusiveMax: schema.exclusiveMax,
+        }
+      );
     }
 
     // Validate precision constraints
     if (schema.precision !== undefined && schema.precision < 0) {
-      builder.addError('NUMBER_INVALID_PRECISION', 'precision must be non-negative', schema.precision);
+      builder.addError('NUMBER_INVALID_PRECISION', 'precision must be non-negative', schema.precision, undefined, { precision: schema.precision });
     }
 
     if (schema.scale !== undefined && schema.scale < 0) {
-      builder.addError('NUMBER_INVALID_SCALE', 'scale must be non-negative', schema.scale);
+      builder.addError('NUMBER_INVALID_SCALE', 'scale must be non-negative', schema.scale, undefined, { scale: schema.scale });
     }
 
     if (schema.precision !== undefined && schema.scale !== undefined && schema.scale > schema.precision) {
-      builder.addError('NUMBER_SCALE_EXCEEDS_PRECISION', `scale (${schema.scale}) cannot exceed precision (${schema.precision})`, { precision: schema.precision, scale: schema.scale });
+      builder.addError('NUMBER_SCALE_EXCEEDS_PRECISION', `scale (${schema.scale}) cannot exceed precision (${schema.precision})`, { precision: schema.precision, scale: schema.scale }, undefined, {
+        precision: schema.precision,
+        scale: schema.scale,
+      });
     }
 
     return builder.build();

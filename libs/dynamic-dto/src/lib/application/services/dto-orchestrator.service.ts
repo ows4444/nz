@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { DynamicSchemaEntity } from '../../domain/entities/dynamic-schema.entity';
-import type { ClassConstructor } from '../../core/types/common.types';
+import type { classConstructor } from '../../core/types/common.types';
 import { DtoGenerationPipeline } from '../pipelines/dto-generation.pipeline';
 import { DtoCacheService } from './dto-cache.service';
 import { DtoValidationService } from './dto-validation.service';
 import { DtoBatchProcessor } from './dto-batch-processor.service';
-import type { ValidationResult } from './dto-validation.service';
+import type { ValidationResult } from '../../core/interfaces/validation/validation-result.interface';
 
 @Injectable()
 export class DtoOrchestratorService {
@@ -18,7 +18,7 @@ export class DtoOrchestratorService {
     private readonly batchProcessor: DtoBatchProcessor
   ) {}
 
-  private async generateDto(schema: DynamicSchemaEntity): Promise<ClassConstructor<object>> {
+  public async generateDto(schema: DynamicSchemaEntity): Promise<classConstructor<object>> {
     const startTime = Date.now();
 
     try {
@@ -26,7 +26,7 @@ export class DtoOrchestratorService {
       await this.cacheService.checkMemoryAndCleanup();
 
       // Check cache first
-      const cached = await this.cacheService.get<ClassConstructor<object>>(schema);
+      const cached = await this.cacheService.get<classConstructor<object>>(schema);
       if (cached) {
         return cached;
       }
@@ -56,7 +56,7 @@ export class DtoOrchestratorService {
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       this.logger.error('DTO generation failed', {
         schemaId: schema.id,
         duration,
@@ -72,9 +72,8 @@ export class DtoOrchestratorService {
     return await this.validationService.validateData(data, DtoClass, schema.id);
   }
 
-  async generateDtoBatch(schemas: DynamicSchemaEntity[]): Promise<Map<string, ClassConstructor<object>>> {
+  async generateDtoBatch(schemas: DynamicSchemaEntity[]): Promise<Map<string, classConstructor<object>>> {
     const { results } = await this.batchProcessor.processBatch(schemas);
     return results;
   }
-
 }

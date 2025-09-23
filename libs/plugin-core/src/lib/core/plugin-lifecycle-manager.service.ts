@@ -9,10 +9,7 @@ export class PluginLifecycleManagerService {
   private readonly logger = new Logger(PluginLifecycleManagerService.name);
   private readonly startTime = Date.now();
 
-  constructor(
-    private readonly pluginRegistry: PluginRegistryService,
-    private readonly pluginLifecycleService: PluginLifecycleService
-  ) {}
+  constructor(private readonly pluginRegistry: PluginRegistryService, private readonly pluginLifecycleService: PluginLifecycleService) {}
 
   /**
    * Register a loaded plugin with enhanced metadata

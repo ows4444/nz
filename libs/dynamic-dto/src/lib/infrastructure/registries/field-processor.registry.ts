@@ -2,26 +2,12 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BaseFieldProcessor } from '../../core/abstractions/base-field-processor.abstract';
 import { FieldSchema } from '../../core/interfaces/schema';
 import { FieldTypeValue } from '../../core/types/field.types';
-
-// Import processors
-import { StringFieldProcessor } from '../../processors/field-processors/primitive/string-field.processor';
-import { NumberFieldProcessor } from '../../processors/field-processors/primitive/number-field.processor';
-import { BooleanFieldProcessor } from '../../processors/field-processors/primitive/boolean-field.processor';
-import { DateFieldProcessor } from '../../processors/field-processors/specialized/date-field.processor';
-import { ArrayFieldProcessor } from '../../processors/field-processors/complex/array-field.processor';
-import { ObjectFieldProcessor } from '../../processors/field-processors/complex/object-field.processor';
-import { EnumFieldProcessor } from '../../processors/field-processors/specialized/enum-field.processor';
-import { UnionFieldProcessor } from '../../processors/field-processors/specialized/union-field.processor';
+import { FieldProcessorDiscoveryService } from '../services/field-processor-discovery.service';
 
 interface ProcessorStats {
   totalProcessors: number;
   supportedTypes: FieldTypeValue[];
   initialized: boolean;
-  errorMetrics?: {
-    totalErrors: number;
-    errorsByType: Record<string, number>;
-    lastErrorTime?: Date;
-  };
 }
 
 @Injectable()
@@ -30,44 +16,40 @@ export class FieldProcessorRegistry implements OnModuleInit {
   private readonly processors = new Map<FieldTypeValue, BaseFieldProcessor>();
   private initialized = false;
 
-  // Performance monitoring for errors
-  private readonly errorMetrics: {
-    totalErrors: number;
-    errorsByType: Record<string, number>;
-    lastErrorTime: Date | undefined;
-  } = {
-    totalErrors: 0,
-    errorsByType: {},
-    lastErrorTime: undefined,
-  };
-
-  constructor(
-    private readonly stringProcessor: StringFieldProcessor,
-    private readonly numberProcessor: NumberFieldProcessor,
-    private readonly booleanProcessor: BooleanFieldProcessor,
-    private readonly dateProcessor: DateFieldProcessor,
-    private readonly arrayProcessor: ArrayFieldProcessor,
-    private readonly objectProcessor: ObjectFieldProcessor,
-    private readonly enumProcessor: EnumFieldProcessor,
-    private readonly unionProcessor: UnionFieldProcessor
-  ) {}
+  constructor(private readonly discoveryService: FieldProcessorDiscoveryService) {}
 
   onModuleInit(): void {
     if (this.initialized) return;
 
     try {
-      // Register all processors
-      this.registerProcessor(this.stringProcessor);
-      this.registerProcessor(this.numberProcessor);
-      this.registerProcessor(this.booleanProcessor);
-      this.registerProcessor(this.dateProcessor);
-      this.registerProcessor(this.arrayProcessor);
-      this.registerProcessor(this.objectProcessor);
-      this.registerProcessor(this.enumProcessor);
-      this.registerProcessor(this.unionProcessor);
+      // Auto-discover and register all field processors using reflection
+      const discoveredProcessors = this.discoveryService.discoverProcessors();
+
+      if (discoveredProcessors.length === 0) {
+        this.logger.warn('No field processors discovered. Ensure processors are decorated with @FieldProcessor');
+        return;
+      }
+
+      // Register discovered processors
+      for (const discovered of discoveredProcessors) {
+        if (this.discoveryService.validateProcessorCompatibility(discovered)) {
+          this.registerProcessor(discovered.instance);
+          this.logger.debug(`Auto-registered processor: ${discovered.type.name} for type: ${discovered.metadata.type}`);
+        } else {
+          this.logger.warn(`Skipping invalid processor: ${discovered.type.name}`);
+        }
+      }
 
       this.initialized = true;
-      this.logger.log(`Initialized ${this.processors.size} field processors`);
+      this.logger.log(`Auto-initialized ${this.processors.size} field processors using discovery service`);
+
+      // Log processor categories for better debugging
+      const categories = this.discoveryService.getProcessorsByCategory();
+      for (const [category, processors] of Object.entries(categories)) {
+        if (processors.length > 0) {
+          this.logger.debug(`${category} processors: ${processors.map((p) => p.type.name).join(', ')}`);
+        }
+      }
     } catch (error) {
       this.logger.error('Failed to initialize field processors', error instanceof Error ? error.message : 'Unknown error');
       throw error;
@@ -76,7 +58,9 @@ export class FieldProcessorRegistry implements OnModuleInit {
 
   registerProcessor(processor: BaseFieldProcessor): void {
     if (!processor?.supportedType) {
-      this.logger.warn('Invalid processor provided', { processor: processor?.constructor.name });
+      this.logger.warn('Invalid processor provided', {
+        processor: processor?.constructor.name,
+      });
       return;
     }
 
@@ -97,10 +81,6 @@ export class FieldProcessorRegistry implements OnModuleInit {
   getProcessor(type: FieldTypeValue): BaseFieldProcessor {
     const processor = this.processors.get(type);
     if (!processor) {
-      // Track error for performance monitoring
-      this.trackError('processor_not_found', type);
-
-      // Log error with minimal overhead - only construct expensive array when needed
       this.logger.error(`No processor found for field type: ${type}`);
       throw new Error(`No processor found for field type: ${type}`);
     }
@@ -121,11 +101,10 @@ export class FieldProcessorRegistry implements OnModuleInit {
         ...processor.generateSerializationDecorators(schema, isRequired, false),
       ];
     } catch (error) {
-      // Track error for performance monitoring
-      this.trackError('field_processing_failed', schema.type);
-
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to process field for type: ${schema.type}`, { error: errorMessage });
+      this.logger.error(`Failed to process field for type: ${schema.type}`, {
+        error: errorMessage,
+      });
       throw new Error(`Field processing failed for type ${schema.type}: ${errorMessage}`);
     }
   }
@@ -151,9 +130,6 @@ export class FieldProcessorRegistry implements OnModuleInit {
         serializationDecorators: processor.generateSerializationDecorators(schema, isRequired, false),
       };
     } catch (error) {
-      // Track error for performance monitoring
-      this.trackError('field_separated_processing_failed', schema.type);
-
       this.logger.error('Failed to process field', {
         fieldType: schema.type,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -181,42 +157,8 @@ export class FieldProcessorRegistry implements OnModuleInit {
   getProcessorStats(): ProcessorStats {
     return {
       totalProcessors: this.processors.size,
-      supportedTypes: this.getSupportedTypes(), // Now uses cached version
+      supportedTypes: this.getSupportedTypes(),
       initialized: this.initialized,
-      errorMetrics: {
-        totalErrors: this.errorMetrics.totalErrors,
-        errorsByType: { ...this.errorMetrics.errorsByType },
-        ...(this.errorMetrics.lastErrorTime && { lastErrorTime: this.errorMetrics.lastErrorTime }),
-      },
     };
-  }
-
-  /**
-   * Track errors for performance monitoring
-   * @private
-   */
-  private trackError(errorType: string, fieldType?: FieldTypeValue): void {
-    this.errorMetrics.totalErrors++;
-    this.errorMetrics.lastErrorTime = new Date();
-
-    const key = fieldType ? `${errorType}_${fieldType}` : errorType;
-    this.errorMetrics.errorsByType[key] = (this.errorMetrics.errorsByType[key] || 0) + 1;
-
-    // Log warning if error rate is high (more than 10 errors in recent activity)
-    if (this.errorMetrics.totalErrors % 10 === 0) {
-      this.logger.warn('High error rate detected in field processor registry', {
-        totalErrors: this.errorMetrics.totalErrors,
-        errorsByType: this.errorMetrics.errorsByType,
-      });
-    }
-  }
-
-  /**
-   * Reset error metrics (useful for testing or periodic cleanup)
-   */
-  resetErrorMetrics(): void {
-    this.errorMetrics.totalErrors = 0;
-    this.errorMetrics.errorsByType = {};
-    this.errorMetrics.lastErrorTime = undefined;
   }
 }

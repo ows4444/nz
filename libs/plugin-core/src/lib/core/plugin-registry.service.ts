@@ -109,6 +109,6 @@ export class PluginRegistryService {
    * Get plugins filtered by status
    */
   getByStatus(status: 'active' | 'inactive' | 'error'): EnhancedPluginRegistryEntry[] {
-    return this.getAll().filter(plugin => plugin.status === status);
+    return this.getAll().filter((plugin) => plugin.status === status);
   }
 }

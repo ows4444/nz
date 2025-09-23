@@ -50,6 +50,18 @@ export class ValidationErrorRecoveryService {
    * Generate recovery plan for validation errors
    */
   generateRecoveryPlan<TError extends BaseValidationError = BaseValidationError>(aggregator: ValidationErrorAggregator): RecoveryPlan<TError> {
+    if (!aggregator) {
+      this.logger.warn('Null aggregator provided to generateRecoveryPlan');
+      return {
+        canAutoRecover: false,
+        recoverySteps: [],
+        manualSteps: [],
+        estimatedRecoveryTime: 0,
+        riskLevel: 'low',
+        sourceErrors: [] as readonly TError[],
+      };
+    }
+
     const errors = aggregator.getErrors();
     const summary = aggregator.getSummary();
 
@@ -95,7 +107,9 @@ export class ValidationErrorRecoveryService {
           id: `fix_type_${error.context?.fieldPath}`,
           action: 'fix_type',
           description: `Auto-convert field '${error.context?.fieldPath}' to expected type`,
-          ...(error.context?.fieldPath && { targetField: error.context.fieldPath }),
+          ...(error.context?.fieldPath && {
+            targetField: error.context.fieldPath,
+          }),
           parameters: {
             expectedType: error.metadata.expectedType,
             currentType: error.metadata.actualType,
@@ -120,7 +134,9 @@ export class ValidationErrorRecoveryService {
           id: `fix_constraint_${error.context?.fieldPath}`,
           action: 'update_constraint',
           description: `Auto-adjust constraint for field '${error.context?.fieldPath}'`,
-          ...(error.context?.fieldPath && { targetField: error.context.fieldPath }),
+          ...(error.context?.fieldPath && {
+            targetField: error.context.fieldPath,
+          }),
           parameters: {
             constraintType: error.metadata.constraintType,
             expectedValue: error.metadata.constraintValue,
@@ -147,7 +163,9 @@ export class ValidationErrorRecoveryService {
           id: `replace_deprecated_${error.context?.fieldPath}`,
           action: 'remove_field',
           description: `Replace deprecated field '${error.context?.fieldPath}'`,
-          ...(error.context?.fieldPath && { targetField: error.context.fieldPath }),
+          ...(error.context?.fieldPath && {
+            targetField: error.context.fieldPath,
+          }),
           parameters: {
             replacedBy: error.metadata.replacedBy,
             migrationGuide: error.metadata.migrationGuide,
@@ -223,7 +241,7 @@ export class ValidationErrorRecoveryService {
   private deduplicateSteps(steps: RecoveryStep[]): RecoveryStep[] {
     const seen = new Set<string>();
     return steps.filter((step) => {
-      const key = `${step.action}:${step.targetField || 'global'}`;
+      const key = `${step.action}:${step.targetField ?? 'global'}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -259,14 +277,14 @@ export class ValidationErrorRecoveryService {
   /**
    * Assess risk level of recovery operations
    */
-  private assessRiskLevel(summary: any, recoverySteps: RecoveryStep[]): 'low' | 'medium' | 'high' {
+  private assessRiskLevel(summary: { criticalErrors: number }, recoverySteps: RecoveryStep[]): 'low' | 'medium' | 'high' {
     // High risk if many critical errors or risky operations
-    if ((summary.criticalErrors as number) > 10 || recoverySteps.some((s) => s.action === 'remove_field')) {
+    if (summary.criticalErrors > 10 || recoverySteps.some((s) => s.action === 'remove_field')) {
       return 'high';
     }
 
     // Medium risk if moderate errors or some auto-operations
-    if ((summary.criticalErrors as number) > 3 || recoverySteps.length > 5) {
+    if (summary.criticalErrors > 3 || recoverySteps.length > 5) {
       return 'medium';
     }
 
@@ -276,16 +294,16 @@ export class ValidationErrorRecoveryService {
   /**
    * Execute automated recovery steps
    */
-  async executeRecoveryPlan(
+  executeRecoveryPlan(
     plan: RecoveryPlan,
     schema: any,
     dryRun = true
-  ): Promise<{
+  ): {
     success: boolean;
     executedSteps: string[];
     remainingIssues: string[];
     modifiedSchema?: any;
-  }> {
+  } {
     if (!plan.canAutoRecover) {
       this.logger.warn('Recovery plan cannot be auto-executed');
       return {
@@ -307,7 +325,7 @@ export class ValidationErrorRecoveryService {
 
       try {
         if (!dryRun) {
-          modifiedSchema = await this.executeRecoveryStep(step, modifiedSchema);
+          modifiedSchema = this.executeRecoveryStep(step, modifiedSchema);
         }
         executedSteps.push(step.description);
         this.logger.debug(`Executed recovery step: ${step.description}`);
@@ -331,7 +349,7 @@ export class ValidationErrorRecoveryService {
   /**
    * Execute individual recovery step
    */
-  private executeRecoveryStep(step: RecoveryStep, schema: any): Promise<any> {
+  private executeRecoveryStep(step: RecoveryStep, schema: any): any {
     switch (step.action) {
       case 'fix_type':
         return this.fixFieldType(schema, step);
@@ -366,5 +384,76 @@ export class ValidationErrorRecoveryService {
   private updateConstraint(schema: any, step: RecoveryStep): any {
     this.logger.debug(`Updating constraint for ${step.targetField}`);
     return schema;
+  }
+
+  /**
+   * Attempt automatic recovery of validation errors
+   */
+  attemptRecovery(validationResult: any, context: any): any {
+    if (validationResult.isValid) {
+      this.logger.debug('Validation result is valid, no recovery needed');
+      return {
+        success: true,
+        recovered: false,
+        result: validationResult,
+        appliedFixes: [],
+      };
+    }
+
+    // Generate recovery plan from errors
+    const errors = validationResult.errors || [];
+    if (errors.length === 0) {
+      return {
+        success: true,
+        recovered: false,
+        result: validationResult,
+        appliedFixes: [],
+      };
+    }
+
+    try {
+      // Convert errors to BaseValidationError format if needed
+      const baseErrors = errors.map((error: any) => ({
+        code: error.code ?? 'UNKNOWN_ERROR',
+        message: error.message ?? 'Unknown error',
+        severity: error.severity ?? 'error',
+        context: { fieldPath: error.fieldPath, ...context },
+        metadata: error.metadata ?? {},
+      }));
+
+      const plan = this.generateRecoveryPlan(baseErrors);
+      const recoveryResult = this.executeRecoveryPlan(plan, context, false);
+
+      return {
+        success: recoveryResult.success,
+        recovered: recoveryResult.executedSteps.length > 0,
+        result: validationResult,
+        appliedFixes: recoveryResult.executedSteps,
+        remainingIssues: recoveryResult.remainingIssues,
+        plan,
+      };
+    } catch (error) {
+      this.logger.error('Recovery attempt failed', error);
+      return {
+        success: false,
+        recovered: false,
+        result: validationResult,
+        error: error instanceof Error ? error.message : 'Unknown recovery error',
+      };
+    }
+  }
+
+  /**
+   * Check if errors can be recovered from
+   */
+  canRecover(errors: any[]): boolean {
+    if (!Array.isArray(errors) || errors.length === 0) {
+      return false;
+    }
+
+    // Check if we have any recoverable error types
+    const recoverableErrors = ['INVALID_TYPE', 'MISSING_FIELD', 'INVALID_CONSTRAINT', 'FIELD_DEPRECATED', 'DUPLICATE_FIELD_NAMES'];
+
+    return errors.some((error) => recoverableErrors.includes(error.code));
   }
 }

@@ -1,6 +1,7 @@
 import { ValidationSeverity } from '../enums/validation.enums';
 import type { ValidationResult } from '../interfaces/validation';
 import type { ValidationIssue } from '../interfaces/validation/validation-issue.interface';
+import { ValidationResultFactory } from '../interfaces/validation/validation-result.interface';
 
 export class ValidationResultBuilder {
   private readonly issues: ValidationIssue[] = [];
@@ -78,26 +79,17 @@ export class ValidationResultBuilder {
     return this;
   }
 
-  build(): ValidationResult {
-    const errors = this.issues.filter((issue) => issue.severity === ValidationSeverity.error);
-    const warnings = this.issues.filter((issue) => issue.severity === ValidationSeverity.warning);
-    const infos = this.issues.filter((issue) => issue.severity === ValidationSeverity.info);
-
-    return {
-      isValid: errors.length === 0,
+  build(): ValidationResult & {
+    readonly errors: ValidationIssue[];
+    readonly warnings: ValidationIssue[];
+    readonly infos: ValidationIssue[];
+  } {
+    return ValidationResultFactory.create({
+      isValid: this.issues.filter((issue) => issue.severity === ValidationSeverity.error).length === 0,
       issues: [...this.issues],
       fieldPath: this.fieldPath,
-      summary: {
-        totalIssues: this.issues.length,
-        errorCount: errors.length,
-        warningCount: warnings.length,
-        infoCount: infos.length,
-      },
       ...(this.metadata && { metadata: this.metadata }),
-      errors,
-      warnings,
-      infos,
-    };
+    });
   }
 
   static success(fieldPath?: string, metadata?: Record<string, unknown>): ValidationResult {

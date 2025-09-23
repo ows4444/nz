@@ -4,7 +4,7 @@ export interface ICacheManager {
   delete(key: string): Promise<boolean>;
   clear(): Promise<void>;
   has(key: string): Promise<boolean>;
-  
+
   // Memory monitoring capabilities
   getMemoryUsage(): Promise<CacheMemoryInfo>;
   isMemoryThresholdExceeded(threshold?: number): Promise<boolean>;

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { ICacheManager, CacheMemoryInfo, CleanupResult } from '../../core/interfaces/cache/cache-manager.interface';
+import { CacheMemoryInfo, CleanupResult, ICacheManager } from '../../core/interfaces/cache/cache-manager.interface';
 import type { ICacheStrategy } from '../../core/interfaces/cache/cache-strategy.interface';
 
 @Injectable()
@@ -46,14 +46,12 @@ export class CacheManagerService implements ICacheManager {
 
   async isMemoryThresholdExceeded(threshold?: number): Promise<boolean> {
     const memoryInfo = await this.getMemoryUsage();
-    const thresholdBytes = threshold || this.defaultMemoryThreshold;
-    
+    const thresholdBytes = threshold ?? this.defaultMemoryThreshold;
+
     const exceeded = memoryInfo.estimatedBytes > thresholdBytes;
-    
+
     if (exceeded) {
-      this.logger.warn(
-        `Cache memory threshold exceeded: ${this.formatBytes(memoryInfo.estimatedBytes)} > ${this.formatBytes(thresholdBytes)}`
-      );
+      this.logger.warn(`Cache memory threshold exceeded: ${this.formatBytes(memoryInfo.estimatedBytes)} > ${this.formatBytes(thresholdBytes)}`);
     }
 
     return exceeded;
@@ -62,20 +60,16 @@ export class CacheManagerService implements ICacheManager {
   async cleanup(aggressive = false): Promise<CleanupResult> {
     if (this.cacheStrategy.cleanup) {
       const result = await this.cacheStrategy.cleanup(aggressive);
-      
-      this.logger.log(
-        `Cache cleanup ${aggressive ? '(aggressive)' : ''}: ` +
-        `${result.entriesRemoved} entries removed, ` +
-        `${this.formatBytes(result.memoryFreed)} freed in ${result.duration}ms`
-      );
-      
+
+      this.logger.log(`Cache cleanup ${aggressive ? '(aggressive)' : ''}: ` + `${result.entriesRemoved} entries removed, ` + `${this.formatBytes(result.memoryFreed)} freed in ${result.duration}ms`);
+
       return result;
     }
 
     // Fallback to basic clear if strategy doesn't implement cleanup
     this.logger.warn('Cache strategy does not implement cleanup, falling back to clear()');
     await this.clear();
-    
+
     return {
       entriesRemoved: 0,
       memoryFreed: 0,

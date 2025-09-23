@@ -2,8 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ValidationStrategy } from '../abstractions/validation-strategy.abstract';
 import type { DynamicSchemaEntity } from '../../domain/entities/dynamic-schema.entity';
 import type { ValidationContext, ValidationResult } from '../interfaces/validation';
+import type { ValidationIssue } from '../interfaces/validation/validation-issue.interface';
 import { ValidationResultMerger } from '../utils/validation-result-merger';
-import { ValidationSeverity } from '../enums/validation.enums';
+import { ValidationResultCompatibilityUtil } from '../utils/validation-result-compatibility.util';
 
 @Injectable()
 export class ValidationChain {
@@ -52,35 +53,15 @@ export class ValidationChain {
         this.logger.error(`Strategy ${strategy.name} failed with error:`, error);
 
         // Create error result for failed strategy
-        const errorResult: ValidationResult = {
-          isValid: false,
-          issues: [
-            {
-              message: `Strategy ${strategy.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              code: 'STRATEGY_EXECUTION_ERROR',
-              severity: ValidationSeverity.error,
-              fieldPath: schema.name,
-              metadata: {
-                strategy: strategy.name,
-                error: error instanceof Error ? error.message : 'Unknown error',
-              },
-            },
-          ],
-          errors: [
-            {
-              message: `Strategy ${strategy.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              code: 'STRATEGY_EXECUTION_ERROR',
-              severity: ValidationSeverity.error,
-              fieldPath: schema.name,
-              metadata: {
-                strategy: strategy.name,
-                error: error instanceof Error ? error.message : 'Unknown error',
-              },
-            },
-          ],
-          warnings: [],
-          infos: [],
-        };
+        const errorResult = ValidationResultCompatibilityUtil.createFailure(
+          `Strategy ${strategy.name} failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          'STRATEGY_EXECUTION_ERROR',
+          schema.name,
+          {
+            strategy: strategy.name,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }
+        );
 
         results.push(errorResult);
       }
@@ -95,7 +76,10 @@ export class ValidationChain {
 
   private shouldStopOnCriticalError(result: ValidationResult): boolean {
     // Stop if there are any critical errors (you can customize this logic)
-    return result.errors?.some((error) => error.code === 'VALIDATION_PIPELINE_ERROR' || error.code === 'STRATEGY_EXECUTION_ERROR') ?? false;
+    const typedResult = result as ValidationResult & {
+      errors?: ValidationIssue[];
+    };
+    return typedResult.errors?.some((error) => error.code === 'VALIDATION_PIPELINE_ERROR' || error.code === 'STRATEGY_EXECUTION_ERROR') ?? false;
   }
 
   clear(): this {

@@ -5,7 +5,9 @@ import { ValidationContext, ValidationResult } from '../../../core/interfaces/va
 import { ValidationResultBuilder } from '../../../core/utils/validation-result.builder';
 import { BooleanFieldSchema } from '../../../core/interfaces/schema/primitive/boolean-field.schema';
 import { Injectable } from '@nestjs/common';
+import { FieldValidator } from '../../../core/decorators/field-validator.decorator';
 
+@FieldValidator({ type: FieldType.boolean, priority: 1, category: 'primitive' })
 @Injectable()
 export class BooleanFieldValidator extends BaseFieldValidator<BooleanFieldSchema> {
   readonly supportedType = FieldType.boolean;
@@ -39,7 +41,7 @@ export class BooleanFieldValidator extends BaseFieldValidator<BooleanFieldSchema
 
       const conflicts = schema.trueValues.filter((v) => falseSet.has(v));
       if (conflicts.length > 0) {
-        builder.addError('BOOLEAN_CONFLICTING_VALUES', `Values appear in both trueValues and falseValues: ${conflicts.join(', ')}`, conflicts);
+        builder.addError('BOOLEAN_CONFLICTING_VALUES', `Values appear in both trueValues and falseValues: ${conflicts.join(', ')}`, conflicts, undefined, { conflicts });
       }
     }
 

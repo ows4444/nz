@@ -1,8 +1,9 @@
 import { ValidationSeverity } from '../enums/validation.enums';
-import type { BaseFieldSchema, ConditionalValidation, DisplayHints, FieldPermissions } from '../interfaces/schema';
+import type { BaseFieldSchema, ConditionalValidation, FieldPermissions } from '../interfaces/schema';
 import type { ValidationContext, ValidationResult } from '../interfaces/validation';
 import type { ValidationIssue } from '../interfaces/validation/validation-issue.interface';
 import type { FieldTypeValue } from '../types/field.types';
+import { ValidationResultCompatibilityUtil } from '../utils/validation-result-compatibility.util';
 
 export abstract class BaseFieldValidator<T extends BaseFieldSchema = BaseFieldSchema> {
   abstract readonly supportedType: FieldTypeValue;
@@ -53,14 +54,11 @@ export abstract class BaseFieldValidator<T extends BaseFieldSchema = BaseFieldSc
   protected mergeResults(results: readonly ValidationResult[]): ValidationResult {
     const allIssues = results.flatMap((r) => r.issues);
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: allIssues.every((issue) => issue.severity !== ValidationSeverity.error),
       issues: allIssues,
       fieldPath: results[0]?.fieldPath ?? '',
-      errors: allIssues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: allIssues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: allIssues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   protected validateCommonProperties(schema: T, context: ValidationContext): ValidationResult {
@@ -76,24 +74,16 @@ export abstract class BaseFieldValidator<T extends BaseFieldSchema = BaseFieldSc
       issues.push(...this.validatePermissions(schema.permissions, context));
     }
 
-    // Display hints validation
-    if (schema.displayHints) {
-      issues.push(...this.validateDisplayHints(schema.displayHints, context));
-    }
-
     // Conditional validation
     if (schema.conditionalValidation?.length) {
       issues.push(...this.validateConditionalRules(schema.conditionalValidation, context));
     }
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath: context.fieldPath,
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   protected validateDeprecation(schema: T, context: ValidationContext): ValidationIssue[] {
@@ -138,32 +128,6 @@ export abstract class BaseFieldValidator<T extends BaseFieldSchema = BaseFieldSc
         message: `Field '${context.fieldPath}' has write permissions without read permissions for roles: ${writeOnlyRoles.join(', ')}`,
         fieldPath: context.fieldPath,
         metadata: { roles: writeOnlyRoles },
-      });
-    }
-
-    return issues;
-  }
-
-  protected validateDisplayHints(hints: DisplayHints, context: ValidationContext): ValidationIssue[] {
-    const issues: ValidationIssue[] = [];
-
-    if (hints.order !== undefined && (hints.order < 0 || !Number.isInteger(hints.order))) {
-      issues.push({
-        severity: ValidationSeverity.error,
-        code: 'DISPLAY_INVALID_ORDER',
-        message: `Display order for field '${context.fieldPath}' must be a non-negative integer`,
-        fieldPath: context.fieldPath,
-        value: hints.order,
-      });
-    }
-
-    if (hints.validation?.debounceMs !== undefined && hints.validation.debounceMs < 0) {
-      issues.push({
-        severity: ValidationSeverity.error,
-        code: 'DISPLAY_INVALID_DEBOUNCE',
-        message: `Validation debounce for field '${context.fieldPath}' must be non-negative`,
-        fieldPath: context.fieldPath,
-        value: hints.validation.debounceMs,
       });
     }
 

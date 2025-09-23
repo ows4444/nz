@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { FieldProcessor } from '../../../core/decorators/field-processor.decorator';
 import { IsDate, IsDateString, IsDefined, IsOptional, registerDecorator, ValidationArguments } from 'class-validator';
-import { BaseFieldProcessor } from '../../../core/abstractions/base-field-processor.abstract';
-import { type TransformationFunction } from '../../../core/abstractions/transformation-processor.abstract';
+import { BaseFieldProcessor, type TransformationFunction } from '../../../core/abstractions/base-field-processor.abstract';
 import { FieldSchema } from '../../../core/interfaces/schema';
 import { DateFieldSchema, DateFormat } from '../../../core/interfaces/schema/specialized-primitives/date-field.schema';
 import { FieldType } from '../../../core/types/field.types';
 
+@FieldProcessor({ type: FieldType.date, priority: 1, category: 'specialized' })
 @Injectable()
 export class DateFieldProcessor extends BaseFieldProcessor<DateFieldSchema> {
   readonly supportedType = FieldType.date;

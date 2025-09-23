@@ -39,12 +39,6 @@ export interface IPluginConfigValidator {
  * Interface for plugin component loading operations
  */
 export interface IPluginComponentLoader {
-  validateComponent<T extends PluginComponentInstance = PluginComponentInstance>(
-    component: Type<T>, 
-    componentName: string
-  ): boolean;
-  loadComponent<T extends PluginComponentInstance = PluginComponentInstance>(
-    componentName: string, 
-    pluginDist: PluginDistribution
-  ): Type<T> | null;
+  validateComponent<T extends PluginComponentInstance = PluginComponentInstance>(component: Type<T>, componentName: string): boolean;
+  loadComponent<T extends PluginComponentInstance = PluginComponentInstance>(componentName: string, pluginDist: PluginDistribution): Type<T> | null;
 }

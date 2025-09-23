@@ -1,33 +1,32 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { Exclude } from 'class-transformer';
 import { FieldSchema } from '../../core/interfaces/schema';
-import { ClassConstructor } from '../../core/types/common.types';
-import { IFieldProcessingMediator } from '../../core/interfaces/mediator/field-processing.mediator';
+import { classConstructor } from '../../core/types/common.types';
 import { LRUCache } from '../cache/lru-cache';
 import { CacheMonitorService } from '../monitoring/cache-monitor.service';
 import { isClassConstructor, isSchemaRecord, isStringArray } from '../../core/types/type-guards';
+import type { FieldProcessorRegistry } from '../registries/field-processor.registry';
 
 export interface INestedClassGenerator {
-  generateNestedClass<T extends Record<string, FieldSchema>>(properties: T, required?: string[], exclude?: boolean): ClassConstructor<{ [K in keyof T]: unknown }>;
+  generateNestedClass<T extends Record<string, FieldSchema>>(properties: T, required?: string[], exclude?: boolean): classConstructor<{ [K in keyof T]: unknown }>;
 }
 
 @Injectable()
 export class NestedClassGeneratorService implements INestedClassGenerator {
   private readonly logger = new Logger(NestedClassGeneratorService.name);
-  private readonly generatedClasses = new LRUCache<string, ClassConstructor<any>>(300); // Max 300 nested classes
+  private readonly generatedClasses = new LRUCache<string, classConstructor<any>>(300); // Max 300 nested classes
   private classCounter = 0;
-  private processingMediator?: IFieldProcessingMediator;
 
-  constructor(@Optional() private readonly cacheMonitor?: CacheMonitorService) {
+  constructor(
+    @Inject(forwardRef(() => 'FieldProcessorRegistry'))
+    private readonly fieldProcessorRegistry: FieldProcessorRegistry,
+    @Optional() private readonly cacheMonitor?: CacheMonitorService
+  ) {
     // Register cache for monitoring if service is available
     this.cacheMonitor?.registerCache('nested-class-generator', this.generatedClasses);
   }
 
-  setProcessingMediator(mediator: IFieldProcessingMediator): void {
-    this.processingMediator = mediator;
-  }
-
-  generateNestedClass<T extends Record<string, FieldSchema>>(properties: T, required: string[] = [], exclude = false): ClassConstructor<{ [K in keyof T]: unknown }> {
+  generateNestedClass<T extends Record<string, FieldSchema>>(properties: T, required: string[] = [], exclude = false): classConstructor<{ [K in keyof T]: unknown }> {
     // Type validation
     if (!isSchemaRecord(properties)) {
       throw new Error('Invalid properties: must be a record of field schemas');
@@ -40,7 +39,7 @@ export class NestedClassGeneratorService implements INestedClassGenerator {
 
     const cachedClass = this.generatedClasses.get(cacheKey);
     if (cachedClass) {
-      return cachedClass;
+      return cachedClass as classConstructor<{ [K in keyof T]: unknown }>;
     }
 
     const className = this.generateUniqueClassName();
@@ -49,12 +48,8 @@ export class NestedClassGeneratorService implements INestedClassGenerator {
     // Process each field
     for (const [fieldName, fieldSchema] of Object.entries(properties)) {
       try {
-        if (!this.processingMediator) {
-          throw new Error('ProcessingMediator not initialized in NestedClassGeneratorService');
-        }
-
         const isRequired = required.includes(fieldName);
-        const decorators = this.processingMediator.processField(fieldSchema, isRequired, false);
+        const decorators = this.fieldProcessorRegistry.processField(fieldSchema, isRequired, false);
 
         this.applyDecorators(DynamicClass, fieldName, decorators);
       } catch (error) {
@@ -82,15 +77,15 @@ export class NestedClassGeneratorService implements INestedClassGenerator {
       });
     }
 
-    return DynamicClass;
+    return DynamicClass as classConstructor<{ [K in keyof T]: unknown }>;
   }
 
-  private createBaseClass<T extends Record<string, FieldSchema>>(className: string, properties: T): ClassConstructor<{ [K in keyof T]: unknown }> {
+  private createBaseClass<T extends Record<string, FieldSchema>>(className: string, properties: T): classConstructor<{ [K in keyof T]: unknown }> {
     const DynamicClass = function (this: { [K in keyof T]: unknown }) {
       for (const propName of Object.keys(properties)) {
         this[propName as keyof T] = undefined;
       }
-    } as unknown as ClassConstructor<{ [K in keyof T]: unknown }>;
+    } as unknown as classConstructor<{ [K in keyof T]: unknown }>;
 
     Object.defineProperty(DynamicClass, 'name', { value: className });
 
@@ -140,16 +135,32 @@ export class NestedClassGeneratorService implements INestedClassGenerator {
     return Math.abs(hash).toString(36);
   }
 
-  private applyDecorators<T extends Record<string, FieldSchema>>(targetClass: ClassConstructor<{ [K in keyof T]: unknown }>, propertyName: string, decorators: PropertyDecorator[]): void {
+  private applyDecorators<T extends Record<string, FieldSchema>>(targetClass: classConstructor<{ [K in keyof T]: unknown }>, propertyName: string, decorators: PropertyDecorator[]): void {
     if (!Array.isArray(decorators)) {
+      this.logger.error(`Invalid decorators format for field ${propertyName}`, {
+        decorators,
+        typeof: typeof decorators,
+        isArray: Array.isArray(decorators),
+      });
       throw new Error('Decorators must be an array');
     }
 
-    decorators.forEach((decorator) => {
+    decorators.forEach((decorator, index) => {
       if (typeof decorator !== 'function') {
+        this.logger.error(`Invalid decorator at index ${index} for field ${propertyName}`, {
+          decorator,
+          typeof: typeof decorator,
+        });
         throw new Error(`Invalid decorator: expected function, got ${typeof decorator}`);
       }
-      decorator(targetClass.prototype, propertyName);
+      try {
+        decorator(targetClass.prototype, propertyName);
+      } catch (error) {
+        this.logger.error(`Failed to apply decorator ${index} to field ${propertyName}`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
     });
   }
 }

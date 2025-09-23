@@ -81,7 +81,7 @@ export class PluginManifestValidator implements IPluginManifestValidator {
     // Validate compatibility constraints if present
     if (manifestObj.compatibility && this.isObject(manifestObj.compatibility)) {
       const compatibility = manifestObj.compatibility as Record<string, unknown>;
-      
+
       // Validate node version constraint
       if (compatibility.nodeVersion && typeof compatibility.nodeVersion === 'string') {
         if (!this.semverValidator.isValidVersionRange(compatibility.nodeVersion)) {
@@ -196,19 +196,25 @@ export class PluginManifestValidator implements IPluginManifestValidator {
     valid: boolean;
     errors: string[];
     warnings: string[];
-    compatibilityMatrix: Record<string, { 
-      dependencies: Record<string, boolean>;
-      missing: string[];
-      incompatible: string[];
-    }>;
+    compatibilityMatrix: Record<
+      string,
+      {
+        dependencies: Record<string, boolean>;
+        missing: string[];
+        incompatible: string[];
+      }
+    >;
   } {
     const errors: string[] = [];
     const warnings: string[] = [];
-    const compatibilityMatrix: Record<string, { 
-      dependencies: Record<string, boolean>;
-      missing: string[];
-      incompatible: string[];
-    }> = {};
+    const compatibilityMatrix: Record<
+      string,
+      {
+        dependencies: Record<string, boolean>;
+        missing: string[];
+        incompatible: string[];
+      }
+    > = {};
 
     // Create a lookup map of available plugins
     const availablePlugins = new Map<string, PluginManifest>();
@@ -222,7 +228,7 @@ export class PluginManifestValidator implements IPluginManifestValidator {
       compatibilityMatrix[pluginName] = {
         dependencies: {},
         missing: [],
-        incompatible: []
+        incompatible: [],
       };
 
       if (!manifest.dependencies || manifest.dependencies.length === 0) {
@@ -267,9 +273,7 @@ export class PluginManifestValidator implements IPluginManifestValidator {
         compatibilityMatrix[pluginName].dependencies[depName] = isCompatible;
 
         if (!isCompatible) {
-          compatibilityMatrix[pluginName].incompatible.push(
-            `${depName}@${dependencyVersion} (requires ${versionConstraint})`
-          );
+          compatibilityMatrix[pluginName].incompatible.push(`${depName}@${dependencyVersion} (requires ${versionConstraint})`);
           errors.push(`Plugin '${pluginName}' requires '${depName}' ${versionConstraint}, but found version ${dependencyVersion}`);
         }
       }
@@ -309,7 +313,7 @@ export class PluginManifestValidator implements IPluginManifestValidator {
       valid: errors.length === 0,
       errors,
       warnings,
-      compatibilityMatrix
+      compatibilityMatrix,
     };
   }
 
@@ -386,8 +390,8 @@ export class PluginManifestValidator implements IPluginManifestValidator {
    * @returns Validation result
    */
   validateHostCompatibility(
-    manifest: PluginManifest, 
-    hostVersion: string, 
+    manifest: PluginManifest,
+    hostVersion: string,
     nodeVersion: string
   ): {
     valid: boolean;
@@ -441,7 +445,7 @@ export class PluginManifestValidator implements IPluginManifestValidator {
     return {
       valid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 }

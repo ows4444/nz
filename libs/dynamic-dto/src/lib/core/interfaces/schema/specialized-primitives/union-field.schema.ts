@@ -1,14 +1,17 @@
 import type { FieldType } from '../../../types/field.types';
 import type { BaseFieldSchema } from '../base/base-field.schema';
+import type { ArrayFieldSchema, ObjectFieldSchema } from '../complex';
+import type { BooleanFieldSchema, NumberFieldSchema, StringFieldSchema } from '../primitive';
+import type { DateFieldSchema } from './date-field.schema';
 
-// Forward declaration to avoid circular dependency
-type FieldSchemaUnion = BaseFieldSchema & {
-  readonly type: string;
-};
+// // Forward declaration to avoid circular dependency
+// type FieldSchemaUnion = BaseFieldSchema & {
+//   readonly type: string;
+// };
 
 export interface UnionFieldSchema extends BaseFieldSchema {
   readonly type: typeof FieldType.union;
-  readonly unionTypes: readonly FieldSchemaUnion[];
+  readonly unionTypes: readonly (StringFieldSchema | NumberFieldSchema | ObjectFieldSchema | BooleanFieldSchema | DateFieldSchema | ArrayFieldSchema)[];
   readonly discriminator?: UnionDiscriminator;
   readonly default?: UnionDefaultValue;
 
@@ -53,10 +56,11 @@ export interface TypeCondition {
 }
 
 export const UnionValidationStrategy = {
-  strict: 'strict', // Value must match exactly one type
-  first_match: 'first_match', // Use first matching type
-  best_match: 'best_match', // Use type with highest confidence score
-  all_valid: 'all_valid', // Value must be valid for all types
+  oneOf: 'oneOf', // Value must match exactly one type
+  firstMatch: 'firstMatch', // Use first matching type
+  anyOf: 'anyOf', // Value can match any type
+  allValid: 'allValid', // Value must be valid for all types
+  bestMatch: 'bestMatch', // Use type with highest confidence score
   discriminated: 'discriminated', // Use discriminator property
 } as const;
 

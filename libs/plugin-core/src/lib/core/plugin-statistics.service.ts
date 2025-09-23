@@ -14,7 +14,7 @@ export class PluginStatisticsService {
    */
   getStatistics(): PluginStatistics {
     const plugins = this.pluginRegistry.getAll();
-    
+
     const statistics: PluginStatistics = {
       totalRegistered: plugins.length,
       activePlugins: plugins.filter((p) => p.status === 'active').length,
@@ -112,9 +112,9 @@ export class PluginStatisticsService {
       };
     }
 
-    const healthy = plugins.filter(p => p.status === 'active').length;
-    const unhealthy = plugins.filter(p => p.status === 'error').length;
-    const unknown = plugins.filter(p => p.status === 'inactive').length;
+    const healthy = plugins.filter((p) => p.status === 'active').length;
+    const unhealthy = plugins.filter((p) => p.status === 'error').length;
+    const unknown = plugins.filter((p) => p.status === 'inactive').length;
 
     return {
       healthy,
@@ -134,10 +134,10 @@ export class PluginStatisticsService {
   }> {
     return this.pluginRegistry
       .getAll()
-      .filter(plugin => plugin.metrics?.requestCount)
+      .filter((plugin) => plugin.metrics?.requestCount)
       .sort((a, b) => (b.metrics?.requestCount || 0) - (a.metrics?.requestCount || 0))
       .slice(0, limit)
-      .map(plugin => ({
+      .map((plugin) => ({
         name: plugin.name,
         requestCount: plugin.metrics?.requestCount || 0,
         lastActivity: plugin.lastActivity,
@@ -154,10 +154,10 @@ export class PluginStatisticsService {
   }> {
     return this.pluginRegistry
       .getAll()
-      .filter(plugin => plugin.metrics?.memoryUsage)
+      .filter((plugin) => plugin.metrics?.memoryUsage)
       .sort((a, b) => (b.metrics?.memoryUsage || 0) - (a.metrics?.memoryUsage || 0))
       .slice(0, limit)
-      .map(plugin => ({
+      .map((plugin) => ({
         name: plugin.name,
         memoryUsage: plugin.metrics?.memoryUsage || 0,
         status: plugin.status,

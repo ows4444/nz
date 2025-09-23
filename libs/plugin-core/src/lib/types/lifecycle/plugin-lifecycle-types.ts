@@ -29,9 +29,7 @@ export interface PluginLifecycleEvent<T extends PluginComponentInstance = Plugin
 /**
  * Plugin lifecycle callback function
  */
-export type PluginLifecycleCallback<T extends PluginComponentInstance = PluginComponentInstance> = (
-  event: PluginLifecycleEvent<T>
-) => void | Promise<void>;
+export type PluginLifecycleCallback<T extends PluginComponentInstance = PluginComponentInstance> = (event: PluginLifecycleEvent<T>) => void | Promise<void>;
 
 /**
  * Plugin lifecycle listener options

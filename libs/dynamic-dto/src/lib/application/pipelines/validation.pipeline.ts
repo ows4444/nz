@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { DynamicSchemaEntity } from '../../domain/entities/dynamic-schema.entity';
 import type { ValidationContext, ValidationResult } from '../../core/interfaces/validation';
+import { ValidationResultFactory } from '../../core/interfaces/validation/validation-result.interface';
 import { ValidationSeverity } from '../../core/enums/validation.enums';
 import { ValidationStrategyFactory } from '../../infrastructure/factories/validation-strategy.factory';
 import { ValidationChain } from '../../core/patterns/validation-chain';
@@ -25,7 +26,7 @@ export class ValidationPipeline {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(`Validation failed for schema: ${schema.name}`, error);
-      return {
+      return ValidationResultFactory.create({
         isValid: false,
         issues: [
           {
@@ -36,18 +37,7 @@ export class ValidationPipeline {
             metadata: { error: errorMessage },
           },
         ],
-        errors: [
-          {
-            message: `Validation pipeline failed: ${errorMessage}`,
-            code: 'VALIDATION_PIPELINE_ERROR',
-            severity: ValidationSeverity.error,
-            fieldPath: schema.name,
-            metadata: { error: errorMessage },
-          },
-        ],
-        warnings: [],
-        infos: [],
-      };
+      });
     }
   }
 

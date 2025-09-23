@@ -2,77 +2,72 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BaseFieldValidator } from '../../core/abstractions/base-field-validator.abstract';
 import { FieldSchema } from '../../core/interfaces/schema';
 import { ValidationContext, ValidationResult } from '../../core/interfaces/validation';
-import { FieldType, FieldTypeValue } from '../../core/types/field.types';
+import { FieldTypeValue } from '../../core/types/field.types';
 import { ValidationResultBuilder } from '../../core/utils/validation-result.builder';
+import { FieldValidatorDiscoveryService } from '../services/field-validator-discovery.service';
 
 interface ValidatorStats {
   totalValidators: number;
+  validatorsByCategory: Record<string, string[]>;
   supportedTypes: FieldTypeValue[];
-  initialized: boolean;
 }
 
-// Import validators
-import { BooleanFieldValidator } from '../../validators/field-validators/primitive/boolean-field.validator';
-import { NumberFieldValidator } from '../../validators/field-validators/primitive/number-field.validator';
-import { StringFieldValidator } from '../../validators/field-validators/primitive/string-field.validator';
-import { ArrayFieldValidator } from '../../validators/field-validators/complex/array-field.validator';
-import { ObjectFieldValidator } from '../../validators/field-validators/complex/object-field.validator';
-import { DateFieldValidator } from '../../validators/field-validators/specialized/date-field.validator';
-import { EnumFieldValidator } from '../../validators/field-validators/specialized/enum-field.validator';
-import { UnionFieldValidator } from '../../validators/field-validators/specialized/union-field.validator';
-
+/**
+ * Dedicated registry for field validators using auto-discovery
+ * Eliminates manual registration and hardcoded mappings
+ */
 @Injectable()
 export class FieldValidatorRegistry implements OnModuleInit {
   private readonly logger = new Logger(FieldValidatorRegistry.name);
   private readonly validators = new Map<FieldTypeValue, BaseFieldValidator>();
   private initialized = false;
 
-  constructor(
-    private readonly booleanValidator: BooleanFieldValidator,
-    private readonly numberValidator: NumberFieldValidator,
-    private readonly stringValidator: StringFieldValidator,
-    private readonly arrayValidator: ArrayFieldValidator,
-    private readonly objectValidator: ObjectFieldValidator,
-    private readonly dateValidator: DateFieldValidator,
-    private readonly enumValidator: EnumFieldValidator,
-    private readonly unionValidator: UnionFieldValidator
-  ) {}
+  constructor(private readonly discoveryService: FieldValidatorDiscoveryService) {}
 
   onModuleInit(): void {
     if (this.initialized) return;
 
     try {
-      this.registerValidators();
+      this.initializeValidators();
       this.initialized = true;
-      this.logger.log(`Initialized ${this.validators.size} field validators`);
+      this.logger.log(`Initialized field validator registry with ${this.validators.size} validators`);
     } catch (error) {
       this.logger.error('Failed to initialize field validators', error);
       throw error;
     }
   }
 
-  private registerValidators(): void {
-    const validatorMappings = [
-      { type: FieldType.boolean, validator: this.booleanValidator },
-      { type: FieldType.number, validator: this.numberValidator },
-      { type: FieldType.string, validator: this.stringValidator },
-      { type: FieldType.array, validator: this.arrayValidator },
-      { type: FieldType.object, validator: this.objectValidator },
-      { type: FieldType.date, validator: this.dateValidator },
-      { type: FieldType.enum, validator: this.enumValidator },
-      { type: FieldType.union, validator: this.unionValidator },
-    ];
+  private initializeValidators(): void {
+    // Auto-discover all validators
+    const discoveredValidators = this.discoveryService.discoverValidators();
 
-    for (const { type, validator } of validatorMappings) {
-      if (validator) {
-        this.validators.set(type, validator);
-        this.logger.debug(`Registered validator for type: ${type}`);
+    if (discoveredValidators.length === 0) {
+      this.logger.warn('No field validators discovered. Ensure validators are decorated with @FieldValidator');
+      return;
+    }
+
+    // Register discovered validators
+    for (const discovered of discoveredValidators) {
+      if (this.discoveryService.validateValidatorCompatibility(discovered)) {
+        this.registerValidator(discovered.instance);
+        this.logger.debug(`Auto-registered validator: ${discovered.type.name} for type: ${discovered.metadata.type}`);
       } else {
-        this.logger.warn(`Validator not available for type: ${type}`);
+        this.logger.warn(`Skipping invalid validator: ${discovered.type.name}`);
+      }
+    }
+
+    // Log validator categories for better debugging
+    const categories = this.discoveryService.getValidatorsByCategory();
+    for (const [category, validators] of Object.entries(categories)) {
+      if (validators.length > 0) {
+        this.logger.debug(`${category} validators: ${validators.map((v) => v.type.name).join(', ')}`);
       }
     }
   }
 
+  /**
+   * Register a validator (supports runtime registration)
+   */
   registerValidator(validator: BaseFieldValidator): void {
     if (!validator?.supportedType) {
       this.logger.warn('Invalid validator provided');
@@ -89,10 +84,46 @@ export class FieldValidatorRegistry implements OnModuleInit {
     this.logger.debug(`Registered validator: ${validator.name} for type: ${validator.supportedType}`);
   }
 
+  /**
+   * Get validator for a specific field type
+   */
   getValidator(type: FieldTypeValue): BaseFieldValidator | undefined {
     return this.validators.get(type);
   }
 
+  /**
+   * Register a validator for a specific field type
+   */
+  register(type: FieldTypeValue, validator: BaseFieldValidator): void {
+    this.validators.set(type, validator);
+    this.logger.debug(`Manually registered validator: ${validator.constructor.name} for type: ${type}`);
+  }
+
+  /**
+   * Get validators for a specific field type (returns array for consistency with tests)
+   */
+  getValidatorsForType(type: FieldTypeValue): BaseFieldValidator[] {
+    const validator = this.getValidator(type);
+    return validator ? [validator] : [];
+  }
+
+  /**
+   * Get the total number of registered validators
+   */
+  getValidatorCount(): number {
+    return this.validators.size;
+  }
+
+  /**
+   * Check if validator exists for field type
+   */
+  hasValidator(type: FieldTypeValue): boolean {
+    return this.validators.has(type);
+  }
+
+  /**
+   * Validate a field schema using the appropriate validator
+   */
   validateField(schema: FieldSchema, context: ValidationContext): ValidationResult {
     try {
       const validator = this.getValidator(schema.type);
@@ -107,10 +138,11 @@ export class FieldValidatorRegistry implements OnModuleInit {
       }
 
       if (!validator.canValidate(schema)) {
-        return ValidationResultBuilder.error('VALIDATOR_INCOMPATIBLE', `Validator cannot handle schema for field: ${context.fieldPath}`, context.fieldPath, {
-          validator: validator.name,
-          fieldType: (schema as { type: string }).type,
-        });
+        return ValidationResultBuilder.error(
+          'VALIDATOR_INCOMPATIBLE',
+          `Validator cannot handle schema for field: ${context.fieldPath}. Validator: ${validator.name}, Field type: ${schema.type}`,
+          context.fieldPath
+        );
       }
 
       return validator.validate(schema, context);
@@ -126,10 +158,23 @@ export class FieldValidatorRegistry implements OnModuleInit {
     }
   }
 
+  /**
+   * Get all registered validators (readonly)
+   */
   getAllValidators(): ReadonlyMap<FieldTypeValue, BaseFieldValidator> {
     return new Map(this.validators);
   }
 
+  /**
+   * Get supported field types
+   */
+  getSupportedTypes(): FieldTypeValue[] {
+    return Array.from(this.validators.keys());
+  }
+
+  /**
+   * Unregister a validator
+   */
   unregisterValidator(type: FieldTypeValue): boolean {
     const removed = this.validators.delete(type);
     if (removed) {
@@ -138,11 +183,30 @@ export class FieldValidatorRegistry implements OnModuleInit {
     return removed;
   }
 
-  getValidatorStats(): ValidatorStats {
+  /**
+   * Get registry statistics
+   */
+  getStats(): ValidatorStats {
+    const categories = this.discoveryService.getValidatorsByCategory();
+    const categoriesMap: Record<string, string[]> = {};
+
+    for (const [category, validators] of Object.entries(categories)) {
+      categoriesMap[category] = validators.map((v) => v.type.name);
+    }
+
     return {
       totalValidators: this.validators.size,
-      supportedTypes: Array.from(this.validators.keys()),
-      initialized: this.initialized,
+      validatorsByCategory: categoriesMap,
+      supportedTypes: this.getSupportedTypes(),
     };
+  }
+
+  /**
+   * Clear all validators (mainly for testing)
+   */
+  clear(): void {
+    this.validators.clear();
+    this.initialized = false;
+    this.logger.debug('Cleared all validators from registry');
   }
 }

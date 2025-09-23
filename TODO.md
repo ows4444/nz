@@ -1,228 +1,349 @@
-# TODO Checklist - Nizaami Plugin Architecture Review
+# TODO Checklist
 
 ## Plugins
 
-- [ ] **Implement actual business logic in plugin services**
-  - **File/Module Path:** `plugins/auth/src/lib/services/auth.service.ts:4-10`, `plugins/user/src/lib/services/user.service.ts:4-10`, `plugins/product/src/lib/services/product.service.ts:4-10`
-  - **Rationale:** All plugin services only contain placeholder "Hello" methods instead of real authentication, user management, and product functionality.
+### Plugin Manifests & Configuration
+
+- [ ] Fix manifest-interface mismatch in plugin core type definitions
+
+  - **File/Module Path:** `libs/plugin-core/src/lib/types/core/plugin-strict-interfaces.ts:182`
+  - **Rationale:** `entryPoint` field is marked as required but missing from all plugin manifests, causing validation failures
   - **Priority:** High
-  - **Suggested Fix:** Replace placeholder methods with actual service implementations. For auth: add login/logout/token validation. For user: add CRUD operations. For product: add catalog management.
+  - **Suggested Fix:** Either add `entryPoint` field to all manifests or make it optional in the interface
 
-- [ ] **Fix inconsistent dependency declaration format in plugin manifests**
-  - **File/Module Path:** `plugins/product/plugin.manifest.json:8-15`, `plugins/user/plugin.manifest.json:8`
-  - **Rationale:** Product plugin mixes object and string formats for dependencies, creating parsing inconsistencies.
-  - **Priority:** High  
-  - **Suggested Fix:** Standardize all dependencies to use object format with name, version, and reason fields.
+- [ ] Standardize dependency declaration format across all plugin manifests
 
-- [ ] **Implement missing compatibility validation in manifests**
+  - **File/Module Path:** `plugins/product/plugin.manifest.json:8-15`
+  - **Rationale:** Mixed dependency formats (objects with version constraints vs plain strings) create validation complexity
+  - **Priority:** High
+  - **Suggested Fix:** Enforce object structure with version constraints for all dependencies
+
+- [ ] Implement proper security configurations for plugin manifests
+
+  - **File/Module Path:** All `plugins/*/plugin.manifest.json`
+  - **Rationale:** All plugins use "unverified" trust level with empty permissions, no checksums or signatures
+  - **Priority:** High
+  - **Suggested Fix:** Add security fields: checksums, signatures, proper trust levels, and specific permissions
+
+- [ ] Add missing compatibility fields in plugin manifests
   - **File/Module Path:** `plugins/product/plugin.manifest.json`, `plugins/user/plugin.manifest.json`
-  - **Rationale:** Only auth plugin has compatibility section, missing platform and version constraints for other plugins.
+  - **Rationale:** Only auth plugin defines platformSupport; inconsistent Node.js version requirements
   - **Priority:** Medium
-  - **Suggested Fix:** Add compatibility section to all plugin manifests with nodeVersion, minimumHostVersion, and platformSupport.
+  - **Suggested Fix:** Add complete compatibility matrices for all plugins
 
-- [ ] **Add cross-plugin service interfaces to prevent tight coupling**
-  - **File/Module Path:** `plugins/*/plugin.manifest.json:22`
-  - **Rationale:** crossPluginServices arrays are empty but plugins have dependencies, suggesting hidden coupling.
+### Plugin Implementation Quality
+
+- [ ] Replace placeholder implementations with actual business logic
+
+  - **File/Module Path:** `plugins/*/src/lib/services/*.service.ts`
+  - **Rationale:** All services only contain trivial `getHello()` methods without real functionality
   - **Priority:** High
-  - **Suggested Fix:** Define explicit service interfaces in manifest crossPluginServices and implement dependency injection pattern.
+  - **Suggested Fix:** Implement meaningful business logic based on plugin domain requirements
 
-- [ ] **Implement plugin-specific guards and permissions**
-  - **File/Module Path:** `plugins/*/plugin.manifest.json:15-16,23`
-  - **Rationale:** All plugins have empty services/modules permissions and guards arrays despite security configuration.
+- [ ] Implement proper dependency injection for cross-plugin dependencies
+
+  - **File/Module Path:** `plugins/product/src/lib/services/product.service.ts`
+  - **Rationale:** Services declare dependencies in manifests but don't inject them in constructors
+  - **Priority:** High
+  - **Suggested Fix:** Add dependency injection decorators and implement cross-plugin service communication
+
+- [ ] Enhance test coverage with integration tests
+  - **File/Module Path:** `plugins/*/src/lib/**/*.spec.ts`
+  - **Rationale:** Tests only verify trivial functionality, missing dependency resolution and error handling tests
   - **Priority:** Medium
-  - **Suggested Fix:** Define specific permissions for each plugin's operations and implement guards for sensitive endpoints.
+  - **Suggested Fix:** Add comprehensive test suites including plugin core integration tests
+
+### Plugin Core Architecture
+
+- [ ] Convert synchronous file operations to async in plugin discovery
+
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-discovery.service.ts:231-242`
+  - **Rationale:** Blocking filesystem operations can cause application blocking during startup
+  - **Priority:** High
+  - **Suggested Fix:** Use `fs.promises` for all file operations and implement proper async patterns
+
+- [ ] Implement proper lifecycle management for plugin instances
+
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-manager.service.ts:128-140`
+  - **Rationale:** Temporary instances created without proper disposal, potential memory leaks
+  - **Priority:** High
+  - **Suggested Fix:** Add proper instance lifecycle tracking and cleanup mechanisms
+
+- [ ] Implement actual sandboxing with process isolation
+
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-module-factory.service.ts:78`
+  - **Rationale:** Direct `require()` of plugin code without validation or isolation
+  - **Priority:** High
+  - **Suggested Fix:** Implement actual sandboxing using worker threads or child processes
+
+- [ ] Add plugin recovery and circuit breaker patterns
+
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-error-handler.service.ts:103-111`
+  - **Rationale:** Basic error wrapping without recovery strategies or circuit breaking
+  - **Priority:** Medium
+  - **Suggested Fix:** Implement circuit breaker pattern and plugin recovery mechanisms
+
+- [ ] Optimize parallel plugin loading
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-discovery.service.ts:270-283`
+  - **Rationale:** Sequential loading despite parallel loading being enabled
+  - **Priority:** Medium
+  - **Suggested Fix:** Implement true parallel loading with connection pooling
 
 ## Apps
 
-- [ ] **Remove hardcoded trusted plugins from security configuration**
-  - **File/Module Path:** `apps/plugin-host/src/app/app.module.ts:32`
-  - **Rationale:** Hardcoded 'core-plugin' and 'admin-plugin' references in trustedPlugins that don't exist in the codebase.
-  - **Priority:** Medium
-  - **Suggested Fix:** Remove hardcoded references or implement actual core/admin plugins with proper trust validation.
+### Plugin Host Application
 
-- [ ] **Implement proper error handling for plugin loading failures**
-  - **File/Module Path:** `apps/plugin-host/src/app/app.module.ts:19-36`
-  - **Rationale:** No error handling for PluginCoreModule configuration failures, could cause application startup issues.
+- [ ] Add core API layer with health checks and plugin management endpoints
+
+  - **File/Module Path:** `apps/plugin-host/src/app/` (missing controllers)
+  - **Rationale:** Plugin host has no API endpoints, health checks, or system management capabilities
   - **Priority:** High
-  - **Suggested Fix:** Add try-catch wrapper and fallback configuration for plugin loading failures.
+  - **Suggested Fix:** Create controllers for health (`/health`, `/ready`), plugin management, and system metrics
 
-- [ ] **Add environment-based configuration management**
-  - **File/Module Path:** `apps/plugin-host/src/app/app.module.ts:21-35`
-  - **Rationale:** All configuration is hardcoded, no distinction between development and production settings.
-  - **Priority:** Medium
-  - **Suggested Fix:** Use ConfigModule to load environment-specific settings for plugin paths, security, and performance tuning.
+- [ ] Implement global exception filters and error handling middleware
 
-- [ ] **Implement health checks and monitoring endpoints**
-  - **File/Module Path:** `apps/plugin-host/src/app/` (missing)
-  - **Rationale:** No health check endpoints for monitoring plugin status and application health.
+  - **File/Module Path:** `apps/plugin-host/src/main.ts`
+  - **Rationale:** Extremely minimal bootstrap with no error handling or graceful shutdown
+  - **Priority:** High
+  - **Suggested Fix:** Add global exception filters, graceful shutdown handlers, and error boundaries
+
+- [ ] Add configuration validation and schema-based configuration management
+
+  - **File/Module Path:** `apps/plugin-host/src/app/app.module.ts:26-38`
+  - **Rationale:** Hard-coded configuration values and minimal environment validation
+  - **Priority:** High
+  - **Suggested Fix:** Implement configuration service with Joi/class-validator schema validation
+
+- [ ] Add authentication and security middleware
+
+  - **File/Module Path:** `apps/plugin-host/src/main.ts`
+  - **Rationale:** No security middleware, CORS, authentication, or rate limiting
   - **Priority:** Medium
-  - **Suggested Fix:** Add HealthModule with plugin-aware health indicators and metrics endpoints.
+  - **Suggested Fix:** Implement JWT authentication, CORS, security headers, and rate limiting
+
+- [ ] Implement structured logging and monitoring
+  - **File/Module Path:** `apps/plugin-host/src/app/app.module.ts`
+  - **Rationale:** No logging middleware or monitoring infrastructure
+  - **Priority:** Medium
+  - **Suggested Fix:** Add Winston/Pino logging with structured format and metrics collection
+
+### E2E Testing Infrastructure
+
+- [ ] Create comprehensive plugin integration tests
+
+  - **File/Module Path:** `apps/plugin-host-e2e/src/plugin-host/plugin-host.spec.ts`
+  - **Rationale:** Only tests non-existent `/api` endpoint, no plugin loading or integration tests
+  - **Priority:** High
+  - **Suggested Fix:** Add tests for plugin discovery, loading, lifecycle, and cross-plugin communication
+
+- [ ] Add performance and load testing
+
+  - **File/Module Path:** `apps/plugin-host-e2e/`
+  - **Rationale:** No performance benchmarking or stress testing
+  - **Priority:** Medium
+  - **Suggested Fix:** Add Jest-based performance tests and load testing with autocannon
+
+- [ ] Implement configuration-specific testing
+  - **File/Module Path:** `apps/plugin-host-e2e/jest.config.ts`
+  - **Rationale:** No environment-specific test configurations
+  - **Priority:** Low
+  - **Suggested Fix:** Add test configurations for different environments and plugin combinations
 
 ## Tools
 
-- [ ] **Add input validation and better error messages in zip executor**
-  - **File/Module Path:** `tools/plugin/src/executors/zip.ts:10-17`
-  - **Rationale:** Minimal error handling and unclear error messages when project configuration is missing.
-  - **Priority:** Medium
-  - **Suggested Fix:** Add comprehensive input validation with detailed error messages and usage examples.
+### Nx Plugin Executors
 
-- [ ] **Fix potential command injection vulnerability in zip executor**
+- [ ] Replace platform-dependent commands with cross-platform Node.js APIs
+
   - **File/Module Path:** `tools/plugin/src/executors/zip.ts:51`
-  - **Rationale:** Direct shell command execution with user-controllable paths could be exploited.
+  - **Rationale:** Uses Unix `find` and `zip` commands, not cross-platform compatible
   - **Priority:** High
-  - **Suggested Fix:** Use proper escaping for shell commands or replace with programmatic zip library.
+  - **Suggested Fix:** Use Node.js archiver library for compression instead of shell commands
 
-- [ ] **Improve plugin generator target configuration**
-  - **File/Module Path:** `tools/plugin/src/generators/with-manifest-only.ts:16-25`
-  - **Rationale:** Generated projects only include test target, missing build, lint, and zip targets.
+- [ ] Add incremental compilation support in build executor
+
+  - **File/Module Path:** `tools/plugin/src/executors/build.ts`
+  - **Rationale:** Always performs full rebuilds, ~3.5s build time indicates optimization opportunities
+  - **Priority:** High
+  - **Suggested Fix:** Enable TypeScript incremental compilation and build caching
+
+- [ ] Enhance build validation and optimization
+
+  - **File/Module Path:** `tools/plugin/src/executors/build.ts`
+  - **Rationale:** No validation of build outputs, missing source maps, no minification
   - **Priority:** Medium
-  - **Suggested Fix:** Add complete target configuration including build, lint, typecheck, and zip executors.
+  - **Suggested Fix:** Add build output validation, source map generation, and minification options
 
-- [ ] **Add CLI argument parsing and help documentation**
+- [ ] Improve error handling and user feedback in executors
   - **File/Module Path:** `tools/plugin/src/executors/*.ts`
-  - **Rationale:** No help documentation or advanced argument parsing for plugin development tools.
-  - **Priority:** Low
-  - **Suggested Fix:** Add comprehensive CLI help, examples, and argument validation using a proper CLI library.
-
-- [ ] **Implement incremental build support in executors**
-  - **File/Module Path:** `tools/plugin/src/executors/build.ts`, `tools/plugin/src/executors/zip.ts`
-  - **Rationale:** No caching or incremental build support, causing unnecessary rebuilds.
+  - **Rationale:** Generic error output without actionable guidance or progress indicators
   - **Priority:** Medium
-  - **Suggested Fix:** Add dependency tracking and output caching to avoid unnecessary work.
+  - **Suggested Fix:** Add structured error messages, progress bars, and pre-flight validation checks
+
+### Plugin Generators
+
+- [ ] Enhance generator templates with complete project scaffolding
+
+  - **File/Module Path:** `tools/plugin/src/generators/files/`
+  - **Rationale:** Missing development server setup, limited test templates, no CI/CD configuration
+  - **Priority:** Medium
+  - **Suggested Fix:** Add serve/watch targets, comprehensive test templates, and CI/CD workflows
+
+- [ ] Add plugin type-specific generation options
+  - **File/Module Path:** `tools/plugin/src/generators/schema.json`
+  - **Rationale:** Limited schema validation and no options for advanced plugin features
+  - **Priority:** Low
+  - **Suggested Fix:** Add generators for specific plugin types (auth, data, UI) with appropriate templates
+
+### Missing CLI Commands
+
+- [ ] Add plugin development server command
+
+  - **File/Module Path:** `tools/plugin/` (missing)
+  - **Rationale:** No hot-reload development support for plugin development
+  - **Priority:** High
+  - **Suggested Fix:** Create `nx plugin:dev <name>` executor with hot-reload capabilities
+
+- [ ] Add plugin validation and security scanning utilities
+
+  - **File/Module Path:** `tools/plugin/` (missing)
+  - **Rationale:** No comprehensive plugin validation or security scanning tools
+  - **Priority:** Medium
+  - **Suggested Fix:** Create `nx plugin:validate` and `nx plugin:security` commands
+
+- [ ] Add plugin dependency analysis tools
+  - **File/Module Path:** `tools/plugin/` (missing)
+  - **Rationale:** Missing tools to analyze plugin dependencies and bundle sizes
+  - **Priority:** Low
+  - **Suggested Fix:** Create `nx plugin:deps` and `nx plugin:size` analyzers
 
 ## Libs
 
-### Plugin Core
+### Plugin Core Library
 
-- [ ] **Remove excessive use of 'any' types throughout plugin-core**
-  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-manager.service.ts:41,71,85`, and 10 other files
-  - **Rationale:** Heavy use of 'any' type reduces type safety and makes debugging difficult.
-  - **Priority:** High
-  - **Suggested Fix:** Define proper TypeScript interfaces for all plugin-related data structures and replace 'any' with specific types.
+- [ ] Reduce service coupling and improve dependency injection patterns
 
-- [ ] **Consolidate duplicate lifecycle management logic**
-  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-lifecycle.service.ts`, `libs/plugin-core/src/lib/core/plugin-lifecycle-manager.service.ts`
-  - **Rationale:** Two separate services handling similar lifecycle concerns creates confusion and potential inconsistency.
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/`
+  - **Rationale:** Some services tightly coupled, complex dependency chains
   - **Priority:** Medium
-  - **Suggested Fix:** Merge lifecycle services or clearly separate concerns between them with proper interfaces.
+  - **Suggested Fix:** Implement cleaner dependency injection patterns and service interfaces
 
-- [ ] **Implement missing semantic version validation**
-  - **File/Module Path:** `libs/plugin-core/src/lib/utils/semver-validator.ts`, `libs/plugin-core/src/lib/utils/plugin-dependency-resolver.ts:300-340`
-  - **Rationale:** Dependency resolver processes version constraints but semver validation might not be fully implemented.
-  - **Priority:** High
-  - **Suggested Fix:** Complete semver validation implementation and integrate with dependency resolution.
+- [ ] Add semantic versioning validation utilities
 
-- [ ] **Remove console.log usage in production code**
-  - **File/Module Path:** Multiple files in `libs/plugin-core/`
-  - **Rationale:** Console logging instead of proper Logger usage can impact performance and log management.
-  - **Priority:** Medium
-  - **Suggested Fix:** Replace all console.log with proper NestJS Logger calls with appropriate log levels.
-
-- [ ] **Add error recovery mechanisms for plugin failures**
-  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-error-handler.service.ts`
-  - **Rationale:** Error handling exists but no automatic recovery or fallback mechanisms for failed plugins.
-  - **Priority:** Medium
-  - **Suggested Fix:** Implement plugin restart capabilities and graceful degradation when plugins fail.
-
-### Dynamic DTO
-
-- [ ] **Complete TODO implementation in union field processor**
-  - **File/Module Path:** `libs/dynamic-dto/src/lib/processors/field-processors/specialized/union-field.processor.ts` (contains "TODO: Implement computed default evaluation")
-  - **Rationale:** Incomplete implementation of computed default evaluation affects union field functionality.
-  - **Priority:** High
-  - **Suggested Fix:** Implement computed default evaluation logic for union field types.
-
-- [ ] **Optimize cache strategy selection mechanism**
-  - **File/Module Path:** `libs/dynamic-dto/src/lib/infrastructure/cache/cache-manager.service.ts:32-44`
-  - **Rationale:** Fallback warning for missing memory monitoring suggests suboptimal cache strategy selection.
-  - **Priority:** Medium
-  - **Suggested Fix:** Implement cache strategy capability detection and automatic selection of optimal strategy.
-
-- [ ] **Reduce complexity in validation strategy factory**
-  - **File/Module Path:** `libs/dynamic-dto/src/lib/infrastructure/factories/validation-strategy.factory.ts`
-  - **Rationale:** Complex strategy selection logic needs simplification for maintainability.
+  - **File/Module Path:** `libs/plugin-core/src/lib/utils/semver-validator.ts`
+  - **Rationale:** Good implementation but could be enhanced with more validation rules
   - **Priority:** Low
-  - **Suggested Fix:** Extract strategy selection logic into separate service with clear decision tree.
+  - **Suggested Fix:** Add pre-release version support and version range validation
 
-- [ ] **Implement proper error aggregation for validation chains**
-  - **File/Module Path:** `libs/dynamic-dto/src/lib/exceptions/validation/validation-error-aggregator.ts`
-  - **Rationale:** Validation error aggregation might not properly handle complex nested validation scenarios.
-  - **Priority:** Medium
-  - **Suggested Fix:** Enhance error aggregation to handle cross-field validation errors and nested object validation.
-
-- [ ] **Add performance monitoring for DTO generation pipeline**
-  - **File/Module Path:** `libs/dynamic-dto/src/lib/application/pipelines/dto-generation.pipeline.ts`
-  - **Rationale:** No performance metrics for DTO generation could impact production debugging.
+- [ ] Optimize dependency resolution performance
+  - **File/Module Path:** `libs/plugin-core/src/lib/utils/plugin-dependency-resolver.ts`
+  - **Rationale:** Complex dependency resolution with potential optimization opportunities
   - **Priority:** Low
-  - **Suggested Fix:** Add timing metrics and performance thresholds to DTO generation pipeline.
+  - **Suggested Fix:** Add caching for dependency resolution and optimize algorithms
+
+### Dynamic DTO Library
+
+- [ ] Optimize validation pipeline performance
+
+  - **File/Module Path:** `libs/dynamic-dto/src/lib/application/pipelines/validation.pipeline.ts`
+  - **Rationale:** Complex validation chains may have performance bottlenecks with large schemas
+  - **Priority:** Medium
+  - **Suggested Fix:** Add batch processing optimizations and validation result caching
+
+- [ ] Simplify field processor architecture
+
+  - **File/Module Path:** `libs/dynamic-dto/src/lib/processors/field-processors/`
+  - **Rationale:** Very complex architecture with potential over-engineering for current use cases
+  - **Priority:** Medium
+  - **Suggested Fix:** Simplify processor patterns and reduce abstraction layers where not needed
+
+- [ ] Reduce circular dependency complexity
+
+  - **File/Module Path:** `libs/dynamic-dto/src/lib/dynamic-dto.module.ts:20`
+  - **Rationale:** Comment indicates circular dependency issues addressed with factory patterns
+  - **Priority:** Low
+  - **Suggested Fix:** Refactor to eliminate circular dependencies through better module organization
+
+- [ ] Add performance monitoring for DTO operations
+  - **File/Module Path:** `libs/dynamic-dto/src/lib/infrastructure/monitoring/`
+  - **Rationale:** Cache monitoring exists but limited performance metrics for DTO operations
+  - **Priority:** Low
+  - **Suggested Fix:** Add comprehensive performance monitoring for DTO generation and validation
+
+### Library Integration
+
+- [x] ~~Consolidate duplicate utility functions across libraries~~ **COMPLETED - No duplicates found**
+
+  - **File/Module Path:** `libs/plugin-core/src/lib/utils/`, `libs/dynamic-dto/src/lib/core/utils/`
+  - **Rationale:** Analysis revealed no duplicate utility functions; each library serves distinct domains
+  - **Priority:** Low
+  - **Resolution:** After comprehensive review, found no functional overlap or code duplication. Plugin-core handles semantic versioning and dependency resolution, while dynamic-dto handles validation result building and merging. Clean separation maintained.
+
+- [ ] Standardize error handling patterns across libraries
+  - **File/Module Path:** `libs/plugin-core/src/lib/core/plugin-error-handler.service.ts`, `libs/dynamic-dto/src/lib/exceptions/`
+  - **Rationale:** Different error handling approaches between libraries
+  - **Priority:** Low
+  - **Suggested Fix:** Implement consistent error handling patterns and shared error types
 
 ## CLAUDE.md
 
-- [ ] **Update service name references to match actual implementation**
-  - **File/Module Path:** `CLAUDE.md:22-24`
-  - **Rationale:** Documentation references `PluginModuleFactory` but actual implementation shows `PluginModuleFactory` class methods.
+- [ ] Add missing typecheck command documentation
+
+  - **File/Module Path:** `CLAUDE.md:31-33`
+  - **Rationale:** Documents `nx typecheck <project>` but actual implementation uses different patterns
   - **Priority:** Low
-  - **Suggested Fix:** Update documentation to reflect actual class and method names in the codebase.
+  - **Suggested Fix:** Verify and document actual typecheck commands used in the codebase
 
-- [ ] **Clarify plugin distribution process documentation**
-  - **File/Module Path:** `CLAUDE.md:48-52`
-  - **Rationale:** Documentation mentions releases/ directories but actual implementation shows different zip file handling.
+- [ ] Update plugin development workflow with current best practices
+
+  - **File/Module Path:** `CLAUDE.md:90-96`
+  - **Rationale:** Workflow documentation could include additional steps like validation and security checks
   - **Priority:** Low
-  - **Suggested Fix:** Align documentation with actual zip executor behavior and file structure.
+  - **Suggested Fix:** Add plugin validation and security scanning steps to the documented workflow
 
-- [ ] **Add security model enforcement guidelines**
-  - **File/Module Path:** `CLAUDE.md:54-60`
-  - **Rationale:** Security model is described but no guidelines for enforcing trust levels and permissions in development.
-  - **Priority:** Medium
-  - **Suggested Fix:** Add concrete examples and enforcement mechanisms for plugin security model.
+- [ ] Add enforcement mechanisms for architectural guidelines
 
-- [ ] **Document actual plugin loading configuration**
-  - **File/Module Path:** `CLAUDE.md:30-40`
-  - **Rationale:** Plugin Host configuration description doesn't match actual app.module.ts implementation details.
+  - **File/Module Path:** `CLAUDE.md`
+  - **Rationale:** Guidelines are documented but no automated enforcement (lint rules, pre-commit hooks)
   - **Priority:** Low
-  - **Suggested Fix:** Update documentation to reflect actual configuration options and their effects.
+  - **Suggested Fix:** Implement ESLint rules and pre-commit hooks to enforce architectural patterns
 
-## Infrastructure
-
-- [ ] **Implement proper dependency version management**
-  - **File/Module Path:** `package.json:7-61`, `nx.json:31,59`
-  - **Rationale:** Nx plugin exclusions in configuration suggest potential version conflicts or build issues.
-  - **Priority:** Medium
-  - **Suggested Fix:** Review and resolve Nx plugin exclusions, ensure all dependencies are properly versioned.
-
-- [ ] **Add pre-commit hooks for code quality**
-  - **File/Module Path:** Root project (missing)
-  - **Rationale:** No automated code quality checks before commits could lead to inconsistent code quality.
+- [ ] Clarify plugin dependency injection strategy with examples
+  - **File/Module Path:** `CLAUDE.md:65-70`
+  - **Rationale:** Documentation mentions dependency injection but lacks concrete implementation examples
   - **Priority:** Low
-  - **Suggested Fix:** Add husky pre-commit hooks for linting, formatting, and testing.
-
-- [ ] **Implement proper workspace dependency management**
-  - **File/Module Path:** `package.json:47-52`
-  - **Rationale:** Workspace configuration exists but no clear dependency management between workspace packages.
-  - **Priority:** Medium
-  - **Suggested Fix:** Add workspace-specific package.json files with proper cross-workspace dependencies.
+  - **Suggested Fix:** Add code examples showing proper plugin dependency injection patterns
 
 ---
 
-## Summary Statistics
+## Priority Summary
 
-**Total Items:** 32
+### Critical (Fix Immediately)
 
-- **High Priority:** 9 items
-- **Medium Priority:** 18 items  
-- **Low Priority:** 5 items
+- Plugin manifest-interface mismatch
+- Convert plugin discovery to async operations
+- Add API layer to plugin host
+- Replace platform-dependent tool commands
+- Implement plugin sandboxing
 
-**By Category:**
+### High Priority (Next Sprint)
 
-- **Plugins:** 5 items
-- **Apps:** 4 items
-- **Tools:** 5 items
-- **Libs:** 14 items
-- **CLAUDE.md:** 4 items
+- Plugin dependency injection
+- Configuration validation
+- Comprehensive testing
+- Plugin development server
+- Error handling improvements
 
-**Key Focus Areas:**
+### Medium Priority (Following Sprint)
 
-1. **Type Safety:** Replace 'any' types with proper interfaces
-2. **Security:** Fix command injection and implement proper plugin permissions
-3. **Implementation Gaps:** Complete placeholder code with actual business logic
-4. **Architecture:** Reduce coupling and improve error handling
+- Performance optimizations
+- Enhanced templates and tooling
+- Monitoring and logging
+- Security enhancements
+
+### Low Priority (Future Releases)
+
+- Code consolidation
+- Advanced tooling features
+- Documentation improvements
+- Architectural refinements

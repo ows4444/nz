@@ -1,7 +1,7 @@
 import type { FieldType, FieldTypeValue } from '../../types/field.types';
 import type { ArrayFieldSchema, ObjectFieldSchema } from './complex';
 import type { BooleanFieldSchema, NumberFieldSchema, StringFieldSchema } from './primitive';
-import type { DateFieldSchema, EnumFieldSchema, UnionFieldSchema } from './specialized-primitives';
+import type { DateFieldSchema, UnionFieldSchema } from './specialized-primitives';
 
 export * from './base/base-field.schema';
 export * from './complex';
@@ -16,7 +16,6 @@ export type FieldSchema =
 
   // Specialized Primitives
   | DateFieldSchema
-  | EnumFieldSchema
   | UnionFieldSchema
 
   // Complex/Structured
@@ -31,8 +30,6 @@ export type FieldSchemaOfType<T extends FieldTypeValue> = T extends typeof Field
   ? BooleanFieldSchema
   : T extends typeof FieldType.date
   ? DateFieldSchema
-  : T extends typeof FieldType.enum
-  ? EnumFieldSchema
   : T extends typeof FieldType.union
   ? UnionFieldSchema
   : T extends typeof FieldType.array

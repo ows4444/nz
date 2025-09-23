@@ -12,12 +12,14 @@ export class SemverValidator {
   /**
    * Regular expression for validating semantic versions (e.g., 1.2.3, 1.2.3-alpha, 1.2.3+build)
    */
-  private readonly semverRegex = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+  private readonly semverRegex =
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
   /**
    * Regular expression for validating version ranges (e.g., ^1.2.3, ~1.2.3, >=1.2.3, 1.2.3 - 2.0.0)
    */
-  private readonly rangeRegex = /^(?:([\^~]?)(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)|([>=]?|[<=]?|=)?(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)|(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)\s*-\s*(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?))$/;
+  private readonly rangeRegex =
+    /^(?:([\^~]?)(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)|([>=]?|[<=]?|=)?(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)|(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)\s*-\s*(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?))$/;
 
   /**
    * Validates if a version string follows semantic versioning
@@ -40,14 +42,14 @@ export class SemverValidator {
     if (!range || typeof range !== 'string') {
       return false;
     }
-    
+
     const trimmedRange = range.trim();
-    
+
     // Check if it's a simple version
     if (this.isValidSemver(trimmedRange)) {
       return true;
     }
-    
+
     // Check if it's a valid range
     return this.rangeRegex.test(trimmedRange);
   }
@@ -246,8 +248,8 @@ export class SemverValidator {
    * @returns Latest compatible version or null if none found
    */
   getLatestCompatibleVersion(versions: string[], range: string): string | null {
-    const compatibleVersions = versions.filter(version => this.satisfiesRange(version, range));
-    
+    const compatibleVersions = versions.filter((version) => this.satisfiesRange(version, range));
+
     if (compatibleVersions.length === 0) {
       return null;
     }

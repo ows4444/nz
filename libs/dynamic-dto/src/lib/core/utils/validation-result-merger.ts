@@ -1,4 +1,5 @@
 import type { ValidationIssue, ValidationResult } from '../interfaces';
+import { ValidationResultFactory } from '../interfaces/validation/validation-result.interface';
 
 type SeverityType = 'error' | 'warning' | 'info';
 
@@ -7,13 +8,25 @@ interface ValidationResultWithSeverityGrouping extends ValidationResult {
 }
 
 export class ValidationResultMerger {
-  static mergeResults(results: ValidationResult[]): ValidationResult {
+  static mergeResults(results: ValidationResult[]): ValidationResult & {
+    readonly errors: ValidationIssue[];
+    readonly warnings: ValidationIssue[];
+    readonly infos: ValidationIssue[];
+  } {
     if (!results?.length) {
       return this.createEmptyResult();
     }
 
     if (results.length === 1) {
-      return results[0] || this.createEmptyResult();
+      const result = results[0];
+      if (!result) {
+        return this.createEmptyResult();
+      }
+
+      // Process single result to ensure consistent structure and cleaning
+      const aggregatedData = this.aggregateResults([result]);
+      const uniqueIssues = this.deduplicateIssues(aggregatedData.allIssues);
+      return this.createMergedResult(uniqueIssues, aggregatedData);
     }
 
     const aggregatedData = this.aggregateResults(results);
@@ -37,6 +50,10 @@ export class ValidationResultMerger {
     let isValid = true;
 
     for (const result of results) {
+      if (!result) {
+        continue;
+      }
+
       this.collectIssuesFromResult(result, allIssues);
 
       if (result.metadata) {
@@ -57,10 +74,19 @@ export class ValidationResultMerger {
   }
 
   private static collectIssuesFromResult(result: ValidationResult, allIssues: ValidationIssue[]): void {
-    const issueSources = [result.issues, result.errors, result.warnings, result.infos];
+    if (!result) {
+      return;
+    }
+
+    const typedResult = result as ValidationResult & {
+      errors?: ValidationIssue[];
+      warnings?: ValidationIssue[];
+      infos?: ValidationIssue[];
+    };
+    const issueSources = [result.issues, typedResult.errors, typedResult.warnings, typedResult.infos];
 
     for (const issues of issueSources) {
-      if (issues?.length) {
+      if (Array.isArray(issues) && issues.length) {
         allIssues.push(...issues);
       }
     }
@@ -101,10 +127,13 @@ export class ValidationResultMerger {
   }
 
   private static getMergedFieldPath(results: ValidationResult[]): string | undefined {
-    const fieldPaths = results.map((result) => result.fieldPath).filter((path): path is string => path !== undefined);
+    const fieldPaths = results
+      .filter((result) => result !== null && result !== undefined)
+      .map((result) => result.fieldPath)
+      .filter((path): path is string => path !== undefined && path !== '');
 
     if (fieldPaths.length === 0) {
-      return undefined;
+      return '';
     }
 
     if (fieldPaths.length === 1) {
@@ -114,41 +143,35 @@ export class ValidationResultMerger {
     return fieldPaths.join(', ');
   }
 
-  private static createMergedResult(uniqueIssues: ValidationIssue[], aggregatedData: ReturnType<typeof ValidationResultMerger.aggregateResults>): ValidationResult {
+  private static createMergedResult(
+    uniqueIssues: ValidationIssue[],
+    aggregatedData: ReturnType<typeof ValidationResultMerger.aggregateResults>
+  ): ValidationResult & {
+    readonly errors: ValidationIssue[];
+    readonly warnings: ValidationIssue[];
+    readonly infos: ValidationIssue[];
+  } {
     const { mergedMetadata, isValid, fieldPath } = aggregatedData;
 
-    return {
+    return ValidationResultFactory.create({
       isValid,
       issues: uniqueIssues.map((issue) => this.cleanObject(issue)),
-      ...(Object.keys(mergedMetadata).length > 0 && { metadata: mergedMetadata }),
-      fieldPath: fieldPath || '',
-
-      get errors() {
-        return uniqueIssues.filter((issue) => issue.severity === 'error');
-      },
-      get warnings() {
-        return uniqueIssues.filter((issue) => issue.severity === 'warning');
-      },
-      get infos() {
-        return uniqueIssues.filter((issue) => issue.severity === 'info');
-      },
-    };
+      ...(Object.keys(mergedMetadata).length > 0 && {
+        metadata: mergedMetadata,
+      }),
+      fieldPath: fieldPath ?? '',
+    });
   }
 
-  private static createEmptyResult(): ValidationResult {
-    return {
+  private static createEmptyResult(): ValidationResult & {
+    readonly errors: ValidationIssue[];
+    readonly warnings: ValidationIssue[];
+    readonly infos: ValidationIssue[];
+  } {
+    return ValidationResultFactory.create({
       isValid: true,
       issues: [],
-      get errors() {
-        return [];
-      },
-      get warnings() {
-        return [];
-      },
-      get infos() {
-        return [];
-      },
-    };
+    });
   }
 
   private static cleanObject<T>(obj: T): T {
@@ -157,16 +180,16 @@ export class ValidationResultMerger {
     }
 
     if (Array.isArray(obj)) {
-      return obj.map((item) => this.cleanObject(item)) as unknown as T;
+      return obj.map((item: unknown) => this.cleanObject(item)) as T;
     }
 
-    const cleaned: T = {} as unknown as T;
+    const cleaned: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       if (value !== undefined) {
-        (cleaned as Record<string, unknown>)[key] = typeof value === 'object' ? this.cleanObject(value) : value;
+        cleaned[key] = typeof value === 'object' && value !== null ? this.cleanObject(value as Record<string, unknown>) : value;
       }
     }
 
-    return cleaned;
+    return cleaned as T;
   }
 }

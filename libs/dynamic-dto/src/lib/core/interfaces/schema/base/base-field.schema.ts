@@ -11,7 +11,6 @@ export interface BaseFieldSchema {
   readonly default?: unknown;
   readonly nullable?: boolean;
   readonly readonly?: boolean; // if readonly,  and autoGenerate is set, it will not be included in the DTO
-  readonly version?: string;
 
   // Lifecycle
   readonly deprecated?: DeprecationInfo;
@@ -19,11 +18,8 @@ export interface BaseFieldSchema {
 
   // Validation
   readonly validationStrategy?: ValidationStrategy;
-  readonly customValidators?: readonly string[];
   readonly conditionalValidation?: readonly ConditionalValidation[];
 
-  // UI/Display
-  readonly displayHints?: DisplayHints;
   readonly expose?: boolean;
   readonly exclude?: boolean;
 
@@ -67,27 +63,6 @@ export interface ValidationRule {
   readonly params?: DeepReadonly<Record<string, unknown>>;
   readonly message?: string;
   readonly severity?: ValidationSeverity;
-}
-
-export interface DisplayHints {
-  readonly label?: string;
-  readonly placeholder?: string;
-  readonly helpText?: string;
-  readonly widget?: WidgetType;
-  readonly widgetProps?: DeepReadonly<Record<string, unknown>>;
-  readonly group?: string;
-  readonly order?: number;
-  readonly hidden?: boolean;
-  readonly collapsible?: boolean;
-  readonly validation?: ValidationDisplayHints;
-}
-
-export type WidgetType = 'input' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'file' | 'date' | 'color' | 'range' | 'custom';
-
-export interface ValidationDisplayHints {
-  readonly showInline?: boolean;
-  readonly showSummary?: boolean;
-  readonly debounceMs?: number;
 }
 
 export interface FieldPermissions {

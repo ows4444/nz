@@ -118,6 +118,13 @@ export class LRUCache<K, V> {
 
     return this.cache.size * (entryOverhead + keySize + valueSize);
   }
+
+  /**
+   * Get the internal cache for iteration (read-only access)
+   */
+  entries(): IterableIterator<[K, V]> {
+    return this.cache.entries();
+  }
 }
 
 export interface CacheStats {

@@ -4,6 +4,7 @@ import type { ValidationIssue } from '../interfaces/validation/validation-issue.
 import { FieldType } from '../types/field.types';
 import { ValidationSeverity } from '../enums/validation.enums';
 import { ValidationResultMerger } from '../utils/validation-result-merger';
+import { ValidationResultCompatibilityUtil } from '../utils/validation-result-compatibility.util';
 
 export abstract class BaseSchemaValidator {
   abstract validate(schema: Record<string, FieldSchema>, data?: unknown, context?: string): ValidationResult;
@@ -46,15 +47,12 @@ export abstract class BaseSchemaValidator {
       });
     }
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath,
       ...(schema.metadata && { metadata: schema.metadata }),
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   private validateFieldConstraints(fieldName: string, schema: FieldSchema, fieldPath: string): ValidationResult {
@@ -86,14 +84,11 @@ export abstract class BaseSchemaValidator {
       });
     }
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath,
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   private validateFieldSecurity(fieldName: string, schema: FieldSchema, fieldPath: string): ValidationResult {
@@ -120,14 +115,11 @@ export abstract class BaseSchemaValidator {
       });
     }
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath,
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   protected validateDeprecatedField(fieldName: string, schema: FieldSchema): ValidationResult {
@@ -205,15 +197,12 @@ export abstract class BaseSchemaValidator {
       }
     }
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath: fieldName,
       ...(schema.metadata && { metadata: schema.metadata }),
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   private isVersionPassed(currentVersion: string, targetVersion: string): boolean {
@@ -225,8 +214,8 @@ export abstract class BaseSchemaValidator {
     const target = parseVersion(targetVersion);
 
     for (let i = 0; i < Math.max(current.length, target.length); i++) {
-      const currentPart = current[i] || 0;
-      const targetPart = target[i] || 0;
+      const currentPart = current[i] ?? 0;
+      const targetPart = target[i] ?? 0;
 
       if (currentPart > targetPart) return true;
       if (currentPart < targetPart) return false;
@@ -298,15 +287,12 @@ export abstract class BaseSchemaValidator {
       }
     }
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath: fieldName,
       ...(schema.metadata && { metadata: schema.metadata }),
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   protected validateSchemaIntegrity(schema: Record<string, FieldSchema>, context = ''): ValidationResult {
@@ -322,14 +308,11 @@ export abstract class BaseSchemaValidator {
     // Check for schema consistency
     this.validateSchemaConsistency(schema);
 
-    return {
+    return ValidationResultCompatibilityUtil.createFromLegacy({
       isValid: !issues.some((issue) => issue.severity === ValidationSeverity.error),
       issues,
       fieldPath: context,
-      errors: issues.filter((issue) => issue.severity === ValidationSeverity.error),
-      warnings: issues.filter((issue) => issue.severity === ValidationSeverity.warning),
-      infos: issues.filter((issue) => issue.severity === ValidationSeverity.info),
-    };
+    });
   }
 
   private detectCircularReferences(schema: Record<string, FieldSchema>, fieldNames: string[], issues: ValidationIssue[], context: string): void {

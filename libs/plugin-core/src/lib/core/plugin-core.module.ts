@@ -1,5 +1,5 @@
 import { DynamicModule, Module, Provider, Type } from '@nestjs/common';
-import { PluginCoreAsyncConfig, PluginCoreOptionsFactory, PLUGIN_CORE_CONFIG, PluginCoreConfig } from '../types/core/plugin-core-config.interface';
+import { PluginCoreAsyncConfig, PluginCoreOptionsFactory, PLUGIN_CORE_CONFIG } from '../types/core/plugin-core-config.interface';
 import { DiscoveryModule } from '@nestjs/core';
 import { PluginMetadataService } from './plugin-metadata.service';
 import { PluginManagerService } from './plugin-manager.service';

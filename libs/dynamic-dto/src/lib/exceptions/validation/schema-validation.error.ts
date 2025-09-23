@@ -51,53 +51,6 @@ export class SchemaStructureValidationError extends BaseValidationError {
   }
 }
 
-export class SchemaVersionValidationError extends BaseValidationError {
-  constructor(schemaName: string, version: string, versionIssue: 'INVALID_FORMAT' | 'VERSION_CONFLICT' | 'UNSUPPORTED_VERSION', context?: ValidationErrorContext) {
-    let message: string;
-    let suggestions: ValidationErrorSuggestion[] = [];
-
-    switch (versionIssue) {
-      case 'INVALID_FORMAT':
-        message = `Schema '${schemaName}' version '${version}' must follow semantic versioning (x.y.z)`;
-        suggestions = [
-          {
-            type: 'fix',
-            message: 'Use semantic versioning format',
-            action: 'Change version to format like 1.0.0',
-          },
-          {
-            type: 'documentation',
-            message: 'Learn about semantic versioning',
-            url: 'https://semver.org',
-          },
-        ];
-        break;
-      case 'VERSION_CONFLICT':
-        message = `Schema '${schemaName}' version '${version}' conflicts with existing version`;
-        suggestions = [
-          {
-            type: 'fix',
-            message: 'Use a different version number',
-            action: 'Increment version appropriately',
-          },
-        ];
-        break;
-      case 'UNSUPPORTED_VERSION':
-        message = `Schema '${schemaName}' version '${version}' is not supported`;
-        suggestions = [
-          {
-            type: 'fix',
-            message: 'Use a supported version',
-            action: 'Check supported version range',
-          },
-        ];
-        break;
-    }
-
-    super(versionIssue, message, ValidationSeverity.error, { ...context, schemaName, schemaVersion: version }, suggestions, { schemaName, version, versionIssue });
-  }
-}
-
 export class SchemaCircularReferenceError extends BaseValidationError {
   constructor(schemaName: string, circularPath: string[], context?: ValidationErrorContext) {
     const message = `Circular reference detected in schema '${schemaName}': ${circularPath.join(' -> ')}`;

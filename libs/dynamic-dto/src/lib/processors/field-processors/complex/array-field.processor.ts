@@ -1,23 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { FieldProcessor } from '../../../core/decorators/field-processor.decorator';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsDefined, IsOptional, ValidateNested } from 'class-validator';
-import { BaseFieldProcessor } from '../../../core/abstractions/base-field-processor.abstract';
-import { type TransformationFunction } from '../../../core/abstractions/transformation-processor.abstract';
+import { BaseFieldProcessor, type TransformationFunction } from '../../../core/abstractions/base-field-processor.abstract';
 import { FieldSchema } from '../../../core/interfaces/schema';
-import { IFieldProcessingMediator } from '../../../core/interfaces/mediator/field-processing.mediator';
 import { ArrayFieldSchema } from '../../../core/interfaces/schema/complex/array-field.schema';
 import { FieldType } from '../../../core/types/field.types';
+import { FieldProcessorRegistry } from '../../../infrastructure/registries/field-processor.registry';
 
+@FieldProcessor({ type: FieldType.array, priority: 2, category: 'complex' })
 @Injectable()
 export class ArrayFieldProcessor extends BaseFieldProcessor<ArrayFieldSchema> {
   readonly supportedType = FieldType.array;
-  private processingMediator?: IFieldProcessingMediator;
 
-  constructor() {
+  constructor(
+    @Inject(forwardRef(() => FieldProcessorRegistry))
+    private readonly fieldProcessorRegistry: FieldProcessorRegistry
+  ) {
     super();
-  }
-
-  setProcessingMediator(mediator: IFieldProcessingMediator): void {
-    this.processingMediator = mediator;
   }
 
   canProcess(schema: FieldSchema): schema is ArrayFieldSchema {
@@ -49,10 +48,7 @@ export class ArrayFieldProcessor extends BaseFieldProcessor<ArrayFieldSchema> {
     if (!Array.isArray(schema.items) && schema.items.type === FieldType.object) {
       decorators.push(ValidateNested({ each: true }));
     } else if (!Array.isArray(schema.items)) {
-      if (!this.processingMediator) {
-        throw new Error('ProcessingMediator not initialized in ArrayFieldProcessor');
-      }
-      const itemDecorators = this.processingMediator.processField(schema.items, true, true);
+      const itemDecorators = this.fieldProcessorRegistry.processField(schema.items, true, true);
       decorators.push(...itemDecorators);
     }
     // If schema.items is an array, handle accordingly if needed
@@ -72,7 +68,7 @@ export class ArrayFieldProcessor extends BaseFieldProcessor<ArrayFieldSchema> {
       order: 30,
       name: 'array_coercion',
       transform: ({ value }) => {
-        if (Array.isArray(value)) return value;
+        if (Array.isArray(value)) return value as unknown[];
 
         // Convert single values to arrays if not already an array
         if (value !== undefined && value !== null) {
@@ -90,7 +86,7 @@ export class ArrayFieldProcessor extends BaseFieldProcessor<ArrayFieldSchema> {
       transform: ({ value }) => {
         if (!Array.isArray(value)) return value;
 
-        let result = [...value];
+        let result = [...(value as unknown[])];
 
         // Remove duplicates if configured
         if (schema.uniqueItems) {
@@ -110,8 +106,8 @@ export class ArrayFieldProcessor extends BaseFieldProcessor<ArrayFieldSchema> {
         transform: ({ value }) => {
           if (!Array.isArray(value)) return value;
 
-          // Basic validation that items are objects
-          return value.filter((item) => item && typeof item === 'object');
+          // Basic validation that items are objects (exclude arrays and null)
+          return value.filter((item) => item && typeof item === 'object' && !Array.isArray(item)) as unknown[];
         },
         condition: (_, { value }) => Array.isArray(value),
       });

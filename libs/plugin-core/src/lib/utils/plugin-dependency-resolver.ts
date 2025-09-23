@@ -37,7 +37,7 @@ export class PluginDependencyResolver {
    * @returns Array of dependency names
    */
   private getDependencyNames(dependencies: DependencyDeclaration[]): string[] {
-    return dependencies.map(dep => this.getDependencyName(dep));
+    return dependencies.map((dep) => this.getDependencyName(dep));
   }
 
   /**
@@ -276,7 +276,7 @@ export class PluginDependencyResolver {
 
     // Filter out plugins with missing dependencies
     const loadablePlugins = pluginData.filter((plugin) => !pluginsWithMissingDeps.has(plugin.manifest.name));
-    
+
     excludedPlugins.push(...pluginsWithMissingDeps);
 
     return {
@@ -313,7 +313,7 @@ export class PluginDependencyResolver {
       if (missingDeps.length > 0) {
         // Find all plugins affected by this missing dependency
         const affectedPlugins = this.findAffectedPlugins(plugin.manifest.name, dependencyMap);
-        
+
         structuredErrors.push({
           pluginName: plugin.manifest.name,
           missingDependencies: missingDeps,

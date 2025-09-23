@@ -12,6 +12,13 @@ export const FieldType = {
   // Complex/Structured
   array: 'array',
   object: 'object',
+
+  // Edge Cases/Advanced Types
+  map: 'map',
+  set: 'set',
+  buffer: 'buffer',
+  tuple: 'tuple',
+  record: 'record',
 } as const;
 
 // 2. Extract type-safe values as union type
@@ -22,8 +29,10 @@ export const FieldTypeGroups = {
   primitive: [FieldType.string, FieldType.number, FieldType.boolean] as const,
   specialized_primitive: [FieldType.date, FieldType.enum, FieldType.union] as const,
   complex_structured: [FieldType.array, FieldType.object] as const,
+  advanced: [FieldType.map, FieldType.set, FieldType.buffer, FieldType.tuple, FieldType.record] as const,
 } as const;
 
 export type PrimitiveFieldType = (typeof FieldTypeGroups.primitive)[number];
 export type SpecializedPrimitiveFieldType = (typeof FieldTypeGroups.specialized_primitive)[number];
 export type ComplexStructuredFieldType = (typeof FieldTypeGroups.complex_structured)[number];
+export type AdvancedFieldType = (typeof FieldTypeGroups.advanced)[number];

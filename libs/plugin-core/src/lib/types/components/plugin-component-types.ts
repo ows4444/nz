@@ -45,14 +45,8 @@ export interface PluginLoadingResult {
 }
 
 export interface ComponentLoader {
-  loadComponent<T extends PluginComponentInstance = PluginComponentInstance>(
-    componentName: string, 
-    pluginDist: PluginDistribution
-  ): Type<T> | null;
-  validateComponent<T extends PluginComponentInstance = PluginComponentInstance>(
-    component: Type<T>, 
-    componentName: string
-  ): boolean;
+  loadComponent<T extends PluginComponentInstance = PluginComponentInstance>(componentName: string, pluginDist: PluginDistribution): Type<T> | null;
+  validateComponent<T extends PluginComponentInstance = PluginComponentInstance>(component: Type<T>, componentName: string): boolean;
 }
 
 export type PluginComponentType = 'controllers' | 'providers' | 'exports';

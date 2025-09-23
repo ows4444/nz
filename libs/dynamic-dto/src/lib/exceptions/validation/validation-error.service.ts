@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ValidationSeverity } from '../../core/enums/validation.enums';
-import { ValidationIssue, ValidationResult } from '../../core/interfaces/validation';
+import {
+  ValidationErrorContext as IValidationErrorContext,
+  ValidationError,
+  ValidationErrorAggregated,
+  ValidationErrorSeverity,
+  ValidationIssue,
+  ValidationResult,
+} from '../../core/interfaces/validation';
+import { FieldTypeValue } from '../../core/types/field.types';
 import { BaseValidationError, ValidationErrorContext } from './base-validation.error';
 import { ValidationErrorAggregator } from './validation-error-aggregator';
 import {
@@ -11,14 +19,7 @@ import {
   FieldSecurityValidationError,
   FieldTypeValidationError,
 } from './field-validation.error';
-import {
-  SchemaBusinessRuleError,
-  SchemaCircularReferenceError,
-  SchemaCrossFieldValidationError,
-  SchemaFieldNamingError,
-  SchemaStructureValidationError,
-  SchemaVersionValidationError,
-} from './schema-validation.error';
+import { SchemaBusinessRuleError, SchemaCircularReferenceError, SchemaCrossFieldValidationError, SchemaFieldNamingError, SchemaStructureValidationError } from './schema-validation.error';
 
 export interface ValidationErrorMetrics {
   totalErrors: number;
@@ -47,12 +48,25 @@ export class ValidationErrorService {
   };
 
   /**
+   * Create simple field validation error (for test compatibility)
+   */
+  createFieldError(field: string, value: unknown, message: string, code: string, context?: IValidationErrorContext): ValidationError {
+    return {
+      field,
+      value,
+      message,
+      code,
+      context,
+    };
+  }
+
+  /**
    * Create optimized field validation errors
    */
-  createFieldError(
+  createLegacyFieldError(
     errorType: 'TYPE_MISMATCH' | 'REQUIRED' | 'CONSTRAINT' | 'PERMISSION' | 'DEPRECATED' | 'SECURITY',
     fieldName: string,
-    details: any,
+    details: Record<string, any>,
     context?: ValidationErrorContext
   ): BaseValidationError {
     switch (errorType) {
@@ -74,19 +88,142 @@ export class ValidationErrorService {
   }
 
   /**
+   * Create constraint validation error
+   */
+  createConstraintError(field: string, value: unknown, constraint: string, expectedValue: unknown, message: string, context?: IValidationErrorContext): ValidationError {
+    const enhancedContext: IValidationErrorContext = {
+      fieldPath: context?.fieldPath ?? field,
+      ...context,
+      constraint,
+      expectedValue,
+      actualValue: value,
+    };
+
+    return {
+      field,
+      value,
+      message,
+      code: 'CONSTRAINT_VIOLATION',
+      context: enhancedContext,
+    };
+  }
+
+  /**
+   * Create type mismatch validation error
+   */
+  createTypeError(field: string, value: unknown, expectedType: FieldTypeValue, actualType: string, context?: IValidationErrorContext): ValidationError {
+    const enhancedContext: IValidationErrorContext = {
+      fieldPath: context?.fieldPath ?? field,
+      ...context,
+      expectedType,
+      actualType,
+    };
+
+    const message = `Expected field '${field}' to be of type '${expectedType}', but received '${actualType}'`;
+
+    return {
+      field,
+      value,
+      message,
+      code: 'TYPE_MISMATCH',
+      context: enhancedContext,
+    };
+  }
+
+  /**
+   * Format error message for validation errors
+   */
+  formatErrorMessage(field: string, constraint: string, expectedValue: unknown, actualValue: unknown): string {
+    if (!constraint || constraint.trim() === '') {
+      return `Field '${field}' validation failed. Expected: ${String(expectedValue)}, Actual: ${String(actualValue)}`;
+    }
+
+    switch (constraint.toLowerCase()) {
+      case 'required':
+        return `Field '${field}' is required`;
+      case 'min':
+        return `Field '${field}' must be at least ${expectedValue as string} (received: ${actualValue as string})`;
+      case 'max':
+        return `Field '${field}' must not exceed ${expectedValue as string} (received: ${actualValue as string})`;
+      case 'minlength':
+        return `Field '${field}' must be at least ${expectedValue as string} characters long (received: ${String(actualValue).length} characters)`;
+      case 'maxlength':
+        return `Field '${field}' must not exceed ${expectedValue as string} characters (received: ${String(actualValue).length} characters)`;
+      default:
+        return `Field '${field}' failed ${constraint} validation. Expected: ${String(expectedValue)}, Actual: ${String(actualValue)}`;
+    }
+  }
+
+  /**
+   * Aggregate multiple validation errors
+   */
+  aggregateErrors(errors: ValidationError[]): ValidationErrorAggregated {
+    const errorsByField: Record<string, ValidationError[]> = {};
+    const errorsByCode: Record<string, ValidationError[]> = {};
+
+    for (const error of errors) {
+      // Group by field
+      errorsByField[error.field] ??= [];
+      errorsByField[error.field].push(error);
+
+      // Group by code
+      errorsByCode[error.code] ??= [];
+      errorsByCode[error.code].push(error);
+    }
+
+    return {
+      totalErrors: errors.length,
+      errorsByField,
+      errorsByCode,
+    };
+  }
+
+  /**
+   * Get error severity based on error code
+   */
+  getErrorSeverity(error: ValidationError): ValidationErrorSeverity {
+    switch (error.code.toUpperCase()) {
+      case 'REQUIRED_FIELD':
+      case 'TYPE_MISMATCH':
+      case 'FIELD_PERMISSION_DENIED':
+        return 'critical';
+      case 'CONSTRAINT_VIOLATION':
+      case 'INVALID_VALUE':
+        return 'error';
+      case 'INVALID_FORMAT':
+      case 'MIN_LENGTH':
+      case 'MAX_LENGTH':
+        return 'warning';
+      default:
+        return 'info';
+    }
+  }
+
+  /**
+   * Create structural validation error
+   */
+  createStructuralError(message: string, code: string, context?: IValidationErrorContext): ValidationError {
+    return {
+      field: '',
+      value: undefined,
+      message,
+      code,
+      context,
+    };
+  }
+
+  /**
    * Create optimized schema validation errors
    */
   createSchemaError(
-    errorType: 'STRUCTURE' | 'VERSION' | 'CIRCULAR_REFERENCE' | 'FIELD_NAMING' | 'BUSINESS_RULE' | 'CROSS_FIELD',
+    errorType: 'STRUCTURE' | 'CIRCULAR_REFERENCE' | 'FIELD_NAMING' | 'BUSINESS_RULE' | 'CROSS_FIELD',
     schemaName: string,
-    details: any,
+    details: Record<string, any>,
     context?: ValidationErrorContext
   ): BaseValidationError {
     switch (errorType) {
       case 'STRUCTURE':
         return new SchemaStructureValidationError(schemaName, details.structureIssue, context);
-      case 'VERSION':
-        return new SchemaVersionValidationError(schemaName, details.version, details.versionIssue, context);
       case 'CIRCULAR_REFERENCE':
         return new SchemaCircularReferenceError(schemaName, details.circularPath, context);
       case 'FIELD_NAMING':
@@ -144,7 +281,7 @@ export class ValidationErrorService {
   private deduplicateErrors(errors: BaseValidationError[]): BaseValidationError[] {
     const seen = new Set<string>();
     return errors.filter((error) => {
-      const key = `${error.code}:${error.context?.fieldPath || 'schema'}`;
+      const key = `${error.code}:${error.context?.fieldPath ?? 'schema'}`;
       if (seen.has(key)) {
         return false;
       }
@@ -212,7 +349,7 @@ export class ValidationErrorService {
 
     // Update by type
     for (const error of errors) {
-      this.errorMetrics.errorsByType[error.constructor.name] = (this.errorMetrics.errorsByType[error.constructor.name] || 0) + 1;
+      this.errorMetrics.errorsByType[error.constructor.name] = (this.errorMetrics.errorsByType[error.constructor.name] ?? 0) + 1;
     }
 
     // Update by severity
@@ -268,17 +405,10 @@ export class ValidationErrorService {
   /**
    * Create context-aware error aggregator
    */
-  createContextAggregator(
-    schemaName?: string,
-    schemaVersion?: string,
-    userRoles?: readonly string[],
-    operation?: 'create' | 'read' | 'update' | 'delete',
-    requestId?: string
-  ): ValidationErrorAggregator {
+  createContextAggregator(schemaName?: string, userRoles?: readonly string[], operation?: 'create' | 'read' | 'update' | 'delete', requestId?: string): ValidationErrorAggregator {
     const context: ValidationErrorContext = {
       fieldPath: '',
       ...(schemaName && { schemaName }),
-      ...(schemaVersion && { schemaVersion }),
       ...(userRoles && { userRoles }),
       ...(operation && { operation }),
       ...(requestId && { requestId }),

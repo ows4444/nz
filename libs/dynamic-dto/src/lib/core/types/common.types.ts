@@ -1,6 +1,6 @@
 export type Primitive = string | number | boolean | null | undefined;
 
-export type ClassConstructor<T = object> = new (...args: unknown[]) => T;
+export type classConstructor<T = object> = new (...args: unknown[]) => T;
 
 export type DeepReadonly<T> = {
   readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
